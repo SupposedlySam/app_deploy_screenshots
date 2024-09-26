@@ -1,0 +1,17 @@
+name: app_deploy_screenshots
+description: 'Generates App Deployment Screenshots'
+version: 0.0.1
+
+environment:
+  sdk: ^3.5.0
+  flutter: '>=1.17.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  meta: ^1.15.0
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  test_api: ^0.7.2
