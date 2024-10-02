@@ -57,7 +57,7 @@ class DeviceBuilder {
   final List<DeviceScenario> scenarios = [];
 
   List<Device> _devicesForScenarios =
-      GoldenToolkit.configuration.defaultDevices;
+      AppDeployToolkit.configuration.defaultDevices;
   int get _numberOfDevicesPerScenario => _devicesForScenarios.length;
 
   /// Overrides the list of devices that are rendered for each scenario
@@ -182,7 +182,8 @@ class DeviceScenarioWidget extends StatelessWidget {
           final mergedMediaQuery = mediaQuery.copyWith(
             size: device.size,
             padding: device.safeArea,
-            platformBrightness: device.brightness, textScaler: TextScaler.linear(device.textScale),
+            platformBrightness: device.brightness,
+            textScaler: TextScaler.linear(device.textScale),
             devicePixelRatio: device.devicePixelRatio,
           );
 

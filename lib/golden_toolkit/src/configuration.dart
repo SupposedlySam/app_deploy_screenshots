@@ -2,34 +2,26 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-/// ***************************************************
-/// Copyright 2019-2020 eBay Inc.
-///
-/// Use of this source code is governed by a BSD-style
-/// license that can be found in the LICENSE file or at
-/// https://opensource.org/licenses/BSD-3-Clause
-/// ***************************************************
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meta/meta.dart';
 import '../golden_toolkit.dart';
 
-/// Manages global state & behavior for the Golden Toolkit
+/// Manages global state & behavior for the App Deploy Toolkit
 /// This is a singleton so that it can be easily configured in one place
 /// and shared across tests
-class GoldenToolkit {
-  GoldenToolkit._();
+class AppDeployToolkit {
+  AppDeployToolkit._();
 
-  static GoldenToolkitConfiguration _configuration =
-      GoldenToolkitConfiguration();
+  static final AppDeployToolkitConfiguration _configuration =
+      AppDeployToolkitConfiguration();
 
-  /// Applies a GoldenToolkitConfiguration to a block of code to effectively provide a scoped
+  /// Applies a AppDeployToolkitConfiguration to a block of code to effectively provide a scoped
   /// singleton. The configuration will apply to just the injected body function.
   ///
   /// In most cases, this can be applied in your flutter_test_config.dart to wrap every test in its own zone
   static T runWithConfiguration<T>(
     T Function() body, {
-    required GoldenToolkitConfiguration config,
+    required AppDeployToolkitConfiguration config,
   }) {
     return runZoned<T>(
       body,
@@ -38,15 +30,8 @@ class GoldenToolkit {
   }
 
   /// reads the current configuration for based on the active zone, or else falls back to the global static state.
-  static GoldenToolkitConfiguration get configuration {
+  static AppDeployToolkitConfiguration get configuration {
     return Zone.current[#goldentoolkit.config] ?? _configuration;
-  }
-
-  /// Invoke this to replace the current Golden Toolkit configuration
-  @Deprecated(
-      'This Global state is being deprecated in favor of using a zoned approach. See GoldenToolkit.runWithConfiguration()')
-  static void configure(GoldenToolkitConfiguration configuration) {
-    _configuration = configuration;
   }
 }
 
@@ -57,14 +42,14 @@ typedef SkipGoldenAssertion = bool Function();
 ///
 /// See also:
 /// * [screenMatchesGolden], which uses such a factory to determine the file name passed to [matchesGoldenFile].
-/// * [GoldenToolkitConfiguration] to configure a global file name factory.
+/// * [AppDeployToolkitConfiguration] to configure a global file name factory.
 typedef FileNameFactory = String Function(String name);
 
 /// A factory to determine a file name/path from a name and a device.
 ///
 /// See also:
 /// * [multiScreenGolden], which uses such a factory to determine the file name passed to [matchesGoldenFile].
-/// * [GoldenToolkitConfiguration] to configure a global device file name factory.
+/// * [AppDeployToolkitConfiguration] to configure a global device file name factory.
 typedef DeviceFileNameFactory = String Function(String name, Device device);
 
 /// A function that primes all needed assets for the given [tester].
@@ -76,8 +61,8 @@ typedef PrimeAssets = Future<void> Function(WidgetTester tester);
 
 /// Represents configuration options for the GoldenToolkit. These are akin to environmental flags.
 @immutable
-class GoldenToolkitConfiguration {
-  /// GoldenToolkitConfiguration constructor
+class AppDeployToolkitConfiguration {
+  /// AppDeployToolkitConfiguration constructor
   ///
   /// [skipGoldenAssertion] a func that returns a bool as to whether the golden assertion should be skipped.
   /// A typical example may be to skip when the assertion is invoked on certain platforms. For example: () => !Platform.isMacOS
@@ -91,7 +76,7 @@ class GoldenToolkitConfiguration {
   /// [enableRealShadows] a flag indicating that we want the goldens to have real shadows (instead of opaque shadows)
   ///
   /// [tags] a string or iterable of strings used to tag golden tests with
-  GoldenToolkitConfiguration({
+  AppDeployToolkitConfiguration({
     this.skipGoldenAssertion = _doNotSkip,
     this.fileNameFactory = defaultFileNameFactory,
     this.deviceFileNameFactory = defaultDeviceFileNameFactory,
@@ -126,7 +111,7 @@ class GoldenToolkitConfiguration {
   final Object? tags;
 
   /// Copies the configuration with the given values overridden.
-  GoldenToolkitConfiguration copyWith({
+  AppDeployToolkitConfiguration copyWith({
     SkipGoldenAssertion? skipGoldenAssertion,
     FileNameFactory? fileNameFactory,
     DeviceFileNameFactory? deviceFileNameFactory,
@@ -135,7 +120,7 @@ class GoldenToolkitConfiguration {
     bool? enableRealShadows,
     Object? tags,
   }) {
-    return GoldenToolkitConfiguration(
+    return AppDeployToolkitConfiguration(
       skipGoldenAssertion: skipGoldenAssertion ?? this.skipGoldenAssertion,
       fileNameFactory: fileNameFactory ?? this.fileNameFactory,
       deviceFileNameFactory:
@@ -150,7 +135,7 @@ class GoldenToolkitConfiguration {
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        other is GoldenToolkitConfiguration &&
+        other is AppDeployToolkitConfiguration &&
             runtimeType == other.runtimeType &&
             skipGoldenAssertion == other.skipGoldenAssertion &&
             fileNameFactory == other.fileNameFactory &&
@@ -177,11 +162,11 @@ bool _doNotSkip() => false;
 /// This is the default file name factory which is used by [screenMatchesGolden] to determine the
 /// actual file name for a golden test. The given [name] is the name passed into [screenMatchesGolden].
 String defaultFileNameFactory(String name) {
-  return 'goldens/$name.png';
+  return 'app_deploy_screenshot/$name.png';
 }
 
 /// This is the default file name factory which is used by [multiScreenGolden] to determine the
 /// actual file name for a golden test. The given [name] is the name passed into [multiScreenGolden].
 String defaultDeviceFileNameFactory(String name, Device device) {
-  return 'goldens/$name.${device.name}.png';
+  return 'app_deploy_screenshots/${device.name}.$name.png';
 }

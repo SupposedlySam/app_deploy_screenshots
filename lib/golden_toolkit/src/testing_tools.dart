@@ -10,7 +10,9 @@ library;
 //ignore_for_file: deprecated_member_use_from_same_package
 
 import 'dart:async';
-import 'dart:ui';
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -161,7 +163,7 @@ void testGoldens(
         _inGoldenTest = true;
         final initialDebugDisableShadowsValue = debugDisableShadows;
         final shouldUseRealShadows =
-            GoldenToolkit.configuration.enableRealShadows;
+            AppDeployToolkit.configuration.enableRealShadows;
         debugDisableShadows = !shouldUseRealShadows;
         try {
           await test(tester);
@@ -171,14 +173,15 @@ void testGoldens(
         }
       }
 
-      if (config is GoldenToolkitConfiguration) {
-        await GoldenToolkit.runWithConfiguration(body, config: config);
+      if (config is AppDeployToolkitConfiguration) {
+        await AppDeployToolkit.runWithConfiguration(body, config: config);
       } else {
         await body();
       }
     },
     skip: skip,
-    tags: tags != _defaultTagObject ? tags : GoldenToolkit.configuration.tags,
+    tags:
+        tags != _defaultTagObject ? tags : AppDeployToolkit.configuration.tags,
   );
 }
 
@@ -220,7 +223,7 @@ Future<void> screenMatchesGolden(
     // downstream API is structured poorly. This should be refactored.
     device: Device.phone,
     fileNameFactory: (String name, Device device) =>
-        GoldenToolkit.configuration.fileNameFactory(name),
+        AppDeployToolkit.configuration.fileNameFactory(name),
   );
 }
 
@@ -244,7 +247,7 @@ Future<void> compareWithGolden(
         'Golden tests MUST be run within a testGoldens method, not just a testWidgets method. This is so we can be confident that running "flutter test --name=GOLDEN" will run all golden tests.');
   }
   final shouldSkipGoldenGeneration =
-      skip ?? GoldenToolkit.configuration.skipGoldenAssertion();
+      skip ?? AppDeployToolkit.configuration.skipGoldenAssertion();
 
   final pumpAfterPrime = customPump ?? _onlyPumpAndSettle;
   /* if no finder is specified, use the first widget. Note, there is no guarantee this evaluates top-down, but in theory if all widgets are in the same
@@ -312,7 +315,7 @@ Future<void> compareWithGolden(
 /// a custom implementation.
 ///
 /// See also:
-/// * [GoldenToolkitConfiguration.primeAssets] to configure a global asset prime function.
+/// * [AppDeployToolkitConfiguration.primeAssets] to configure a global asset prime function.
 Future<void> legacyPrimeAssets(WidgetTester tester) async {
   final renderObject = tester.binding.renderViews.first;
   assert(!renderObject.debugNeedsPaint);
@@ -327,8 +330,8 @@ Future<void> legacyPrimeAssets(WidgetTester tester) async {
   // This should be enough time for most images/assets to be ready.
   await tester.runAsync<void>(() async {
     final image = await layer.toImage(renderObject.paintBounds);
-    await image.toByteData(format: ImageByteFormat.png);
-    await image.toByteData(format: ImageByteFormat.png);
+    await image.toByteData(format: ui.ImageByteFormat.png);
+    await image.toByteData(format: ui.ImageByteFormat.png);
   });
 }
 
@@ -337,7 +340,7 @@ Future<void> legacyPrimeAssets(WidgetTester tester) async {
 /// Currently this supports images included via Image widgets, or as part of BoxDecorations.
 ///
 /// See also:
-/// * [GoldenToolkitConfiguration.primeAssets] to configure a global asset prime function.
+/// * [AppDeployToolkitConfiguration.primeAssets] to configure a global asset prime function.
 Future<void> defaultPrimeAssets(WidgetTester tester) async {
   final imageElements = find.byType(Image, skipOffstage: false).evaluate();
   final containerElements =
@@ -363,3 +366,63 @@ Future<void> defaultPrimeAssets(WidgetTester tester) async {
 
 Future<void> _onlyPumpAndSettle(WidgetTester tester) async =>
     tester.pumpAndSettle();
+
+/// Captures a screenshot of the widget and saves it to a file
+Future<void> captureScreenshot(
+  WidgetTester tester,
+  String name, {
+  Finder? finder,
+  CustomPump? customPump,
+  required DeviceFileNameFactory fileNameFactory,
+  required Device device,
+}) async {
+  assert(
+    !name.endsWith('.png'),
+    'Screenshot names should not include file type',
+  );
+
+  final pumpAfterPrime = customPump ?? _onlyPumpAndSettle;
+  final actualFinder = finder ?? find.byWidgetPredicate((w) => true).first;
+  final fileName = fileNameFactory(name, device);
+
+  await tester.waitForAssets();
+  await pumpAfterPrime(tester);
+
+  // Capture the image
+  final imageFuture = captureImage(actualFinder.evaluate().first);
+
+  // Save the image to a file
+  final relativeDirectory = Directory.current;
+  final file = File(fileName);
+  await tester.runAsync(() async {
+    final ui.Image image = await imageFuture;
+    try {
+      final ByteData? bytes =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) {
+        return 'could not encode screenshot.';
+      } else {
+        await file.create(recursive: true);
+        await file.writeAsBytes(bytes.buffer.asUint8List());
+      }
+    } catch (e) {
+      print(e);
+    }
+  });
+}
+
+/// Render the closest [RepaintBoundary] of the [element] into an image.
+///
+/// See also:
+///
+///  * [OffsetLayer.toImage] which is the actual method being called.
+Future<ui.Image> captureImage(Element element) {
+  assert(element.renderObject != null);
+  RenderObject renderObject = element.renderObject!;
+  while (!renderObject.isRepaintBoundary) {
+    renderObject = renderObject.parent!;
+  }
+  assert(!renderObject.debugNeedsPaint);
+  final OffsetLayer layer = renderObject.debugLayer! as OffsetLayer;
+  return layer.toImage(renderObject.paintBounds);
+}
