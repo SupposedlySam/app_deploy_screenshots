@@ -1,0 +1,121 @@
+name: Upload Screenshots
+
+on:
+  workflow_call:
+
+jobs:
+  upload-to-stores:
+    runs-on: macos-latest
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+
+      - name: Download Screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: app-screenshots
+          path: app_deploy_screenshots
+
+      # Cache Ruby gems
+      - name: Setup Ruby and Cache Gems
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          cache-version: 1
+
+      # Cache Fastlane
+      - name: Cache Fastlane
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-fastlane-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-fastlane-
+
+      - name: Install Fastlane
+        run: |
+          gem install bundler
+          bundle config path vendor/bundle
+          bundle install --jobs 4 --retry 3
+
+      # Organize iOS Screenshots
+      - name: Prepare iOS Screenshots
+        run: |
+          mkdir -p fastlane/screenshots/ios
+          # Copy and rename screenshots according to Fastlane's expected format
+          for device in app_deploy_screenshots/ios/*; do
+            if [[ -d "$device" ]]; then
+              device_name=$(basename "$device")
+              # Extract the screen size from the folder name
+              screen_size=$(echo "$device_name" | cut -d'_' -f1)
+              device_type=$(echo "$device_name" | cut -d'_' -f2-)
+              
+              # Create device-specific directory
+              mkdir -p "fastlane/screenshots/ios/$device_type"
+              
+              # Copy and rename screenshots
+              cp "$device/initial_state.png" "fastlane/screenshots/ios/$device_type/0_initial_state.png"
+              cp "$device/incremented_state.png" "fastlane/screenshots/ios/$device_type/1_incremented_state.png"
+            fi
+          done
+
+      # Organize Android Screenshots
+      - name: Prepare Android Screenshots
+        run: |
+          mkdir -p fastlane/screenshots/android
+          # Copy and rename screenshots according to Fastlane's expected format
+          for device in app_deploy_screenshots/android/*; do
+            if [[ -d "$device" ]]; then
+              device_name=$(basename "$device")
+              # Extract the screen size from the folder name
+              screen_size=$(echo "$device_name" | cut -d'_' -f1)
+              device_type=$(echo "$device_name" | cut -d'_' -f2-)
+              
+              # Create device-specific directory
+              mkdir -p "fastlane/screenshots/android/$device_type"
+              
+              # Copy and rename screenshots
+              cp "$device/initial_state.png" "fastlane/screenshots/android/$device_type/0_initial_state.png"
+              cp "$device/incremented_state.png" "fastlane/screenshots/android/$device_type/1_incremented_state.png"
+            fi
+          done
+
+      # Cache iOS certificates
+      - name: Cache iOS Certificates
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/MobileDevice/Provisioning Profiles
+          key: ${{ runner.os }}-ios-certs-${{ hashFiles('**/*.mobileprovision') }}
+          restore-keys: |
+            ${{ runner.os }}-ios-certs-
+
+      - name: Setup iOS certificates
+        uses: apple-actions/import-codesign-certs@v1
+        with:
+          p12-file-base64: ${{ secrets.IOS_P12_CERTIFICATE }}
+          p12-password: ${{ secrets.IOS_P12_PASSWORD }}
+
+      - name: Upload iOS Screenshots
+        env:
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
+        run: |
+          bundle exec fastlane deliver \
+            --screenshots_path fastlane/screenshots/ios \
+            --skip_binary_upload true \
+            --skip_metadata true \
+            --skip_app_version_update true \
+            --force true
+
+      - name: Upload Android Screenshots
+        env:
+          SUPPLY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+        run: |
+          bundle exec fastlane supply \
+            --screenshots_path fastlane/screenshots/android \
+            --skip_upload_apk true \
+            --skip_upload_aab true \
+            --skip_upload_metadata true \
+            --skip_upload_changelogs true 

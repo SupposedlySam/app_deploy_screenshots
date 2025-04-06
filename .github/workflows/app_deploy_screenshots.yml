@@ -1,0 +1,55 @@
+name: App Deploy Screenshots
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  generate-screenshots:
+    runs-on: ubuntu-latest
+    outputs:
+      screenshots_generated: ${{ steps.check_screenshots.outputs.files_exist }}
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.2'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Generate App Deploy Screenshots
+        run: flutter test --tags app_deploy_screenshots
+
+      - name: Check Screenshots Generated
+        id: check_screenshots
+        run: |
+          if [ -n "$(find . -path './app_deploy_screenshots/**/*.png' -type f)" ]; then
+            echo "files_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "files_exist=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Screenshots Artifact
+        if: steps.check_screenshots.outputs.files_exist == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-screenshots
+          path: app_deploy_screenshots/**/*.png
+          retention-days: 1
+
+  # New job that calls the upload workflow
+  upload:
+    needs: generate-screenshots
+    if: needs.generate-screenshots.outputs.screenshots_generated == 'true'
+    uses: ./.github/workflows/upload_screenshots.yml
+
+      
