@@ -12,7 +12,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    await appDeployScreenshot(tester, 'first_page');
+    await createAllByPlatformAndDevice(tester, 'first_page');
 
     expect(true, isTrue);
   });
