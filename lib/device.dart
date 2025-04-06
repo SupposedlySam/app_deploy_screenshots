@@ -38,7 +38,7 @@ enum DisplaySize {
   const DisplaySize(this.inches);
   final double inches;
 
-  String get label => '$inches"';
+  String get label => '$inches';
 
   @override
   String toString() => label;

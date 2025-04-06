@@ -1,30 +1,69 @@
 name: App Deploy Screenshots
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_call:
+    inputs:
+      flutter_channel:
+        required: false
+        type: string
+        default: "stable"
+      flutter_version:
+        required: false
+        type: string
+        default: ""
+      runs_on:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      setup:
+        required: false
+        type: string
+        default: ""
+      working_directory:
+        required: false
+        type: string
+        default: "."
+    secrets:
+      ssh_key:
+        required: false
+
 
 jobs:
   generate-screenshots:
-    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{inputs.working_directory}}
+
+    runs-on: ${{inputs.runs_on}}
     outputs:
       screenshots_generated: ${{ steps.check_screenshots.outputs.files_exist }}
 
     steps:
-      - name: Clone Repository
+      - name: 📚 Git Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.2'
-          channel: 'stable'
+          flutter-version: ${{inputs.flutter_version}}
+          channel: ${{inputs.flutter_channel}}
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: 🤫 Set SSH Key
+        env:
+          ssh_key: ${{secrets.ssh_key}}
+        if: env.ssh_key != null
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{secrets.ssh_key}}
 
       - name: Install Dependencies
         run: flutter pub get
+
+      - name: ⚙️ Run Setup
+        if: "${{inputs.setup != ''}}"
+        run: ${{inputs.setup}}
 
       - name: Generate App Deploy Screenshots
         run: flutter test --tags app_deploy_screenshots
