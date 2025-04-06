@@ -1,3 +1,112 @@
-export 'golden_toolkit/src/app_deploy_golden.dart'
-    show createAllByPlatformAndDevice, appDeployScreenshot;
-export 'golden_toolkit/src/device.dart' show Device, DevicePlatform;
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:app_deploy_screenshots/configuration.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:app_deploy_screenshots/device.dart';
+import 'package:app_deploy_screenshots/widget_tester_extensions.dart';
+
+export 'package:app_deploy_screenshots/golden_toolkit/golden_toolkit.dart';
+
+///CustomPump is a function that lets you do custom pumping before golden evaluation.
+///Sometimes, you want to do a golden test for different stages of animations, so its crucial to have a precise control over pumps and durations
+typedef CustomPump = Future<void> Function(WidgetTester);
+
+/// Creates all ios and android screnshots based on app store guidelines
+///
+/// iPhone: Adding accurate screenshots of your app on the newest devices can help you represent the app's user experience. Keep in mind that we'll use these screenshots for all display sizes and localizations. Screenshots are only required for iOS apps, and only the first 3 will be used on the app installation sheets.
+///   6.9": Drag up to 3 app previews and 10 screenshots here for iPhone 6.7" or 6.9" Displays. (1320 × 2868px, 2868 × 1320px, 1290 × 2796px or 2796 × 1290px)
+///   6.5": Drag up to 3 app previews and 10 screenshots here. (1242 × 2688px, 2688 × 1242px, 1284 × 2778px or 2778 × 1284px)
+///   iPad-13: Drag up to 3 app previews and 10 screenshots here for iPad 12.9" or 13" Displays. (2064 × 2752px, 2752 × 2064px, 2048 × 2732px or 2732 × 2048px)
+/// android:
+///   phone: Upload 2-8 phone screenshots. Screenshots must be PNG or JPEG, up to 8 MB each, 16:9 or 9:16 aspect ratio, with each side between 320 px and 3,840 px
+///   tablet-7: Upload up to eight 7-inch tablet screenshots. Screenshots must be PNG or JPEG, up to 8 MB each, 16:9 or 9:16 aspect ratio, with each side between 320 px and 3,840 px
+///   tablet-10: Upload up to eight 10-inch tablet screenshots. Screenshots must be PNG or JPEG, up to 8 MB each, 16:9 or 9:16 aspect ratio, with each side between 1,080 px and 7,680 px
+///   chromebook: Upload 4-8 screenshots. Screenshots must be PNG or JPEG, up to 8 MB each, 16:9 or 9:16 aspect ratio, with each side between 1,080 px and 7,680 px
+///
+/// See [captureScreenshot] as well
+Future<void> captureByPlatformAndDevice(
+  WidgetTester tester,
+  String name, {
+  Finder? finder,
+  CustomPump? customPump,
+}) async {
+  final iosDevices = Device.byPlatform(DevicePlatform.ios);
+
+  final androidDevices = Device.byPlatform(DevicePlatform.android);
+
+  final devices = [...iosDevices, ...androidDevices];
+
+  for (final device in devices) {
+    await tester.binding.runWithDeviceOverrides(
+      device,
+      body: () async {
+        await _twoPumps(device, tester);
+        await captureScreenshot(
+          tester,
+          name,
+          customPump: customPump,
+          finder: finder,
+          device: device,
+          fileNameFactory: (name, device) =>
+              'app_deploy_screenshots/${device.platform.name}/${device.displaySize.label}_${device.name}/$name.png',
+        );
+      },
+    );
+  }
+}
+
+/// Captures a screenshot of the widget and saves it to a file
+///
+/// See [captureByPlatformAndDevice]
+Future<void> captureScreenshot(
+  WidgetTester tester,
+  String name, {
+  Finder? finder,
+  CustomPump? customPump,
+  required DeviceFileNameFactory fileNameFactory,
+  required Device device,
+}) async {
+  assert(
+    !name.endsWith('.png'),
+    'Screenshot names should not include file type',
+  );
+
+  final pumpAfterPrime = customPump ?? _onlyPumpAndSettle;
+  final actualFinder = finder ?? find.byWidgetPredicate((w) => true).first;
+  final fileName = fileNameFactory(name, device);
+
+  await tester.waitForAssets();
+  await pumpAfterPrime(tester);
+
+  // Capture the image
+  final imageFuture = captureImage(actualFinder.evaluate().first);
+
+  // Save the image to a file
+  final file = File(fileName);
+  await tester.runAsync(() async {
+    final ui.Image image = await imageFuture;
+    try {
+      final ByteData? bytes =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) {
+        return 'could not encode screenshot.';
+      } else {
+        await file.create(recursive: true);
+        await file.writeAsBytes(bytes.buffer.asUint8List());
+      }
+    } catch (e) {
+      print(e);
+    }
+  });
+}
+
+Future<void> _onlyPumpAndSettle(WidgetTester tester) async =>
+    tester.pumpAndSettle();
+
+Future<void> _twoPumps(Device device, WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump();
+}

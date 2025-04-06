@@ -7,10 +7,9 @@
 /// ***************************************************
 library golden_toolkit;
 
-export 'src/app_deploy_golden.dart';
-export 'src/configuration.dart';
-export 'src/device.dart';
+export '../configuration.dart';
+export '../device.dart';
 export 'src/device_builder.dart';
 export 'src/font_loader.dart' show loadAppFonts;
 export 'src/testing_tools.dart' hide compareWithGolden;
-export 'src/widget_tester_extensions.dart';
+export '../widget_tester_extensions.dart';

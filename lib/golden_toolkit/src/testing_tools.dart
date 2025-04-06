@@ -19,11 +19,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meta/meta.dart';
 
-import 'configuration.dart';
-import 'device.dart';
+import '../../configuration.dart';
+import '../../device.dart';
 import 'device_builder.dart';
 import 'test_asset_bundle.dart';
-import 'widget_tester_extensions.dart';
+import '../../widget_tester_extensions.dart';
 
 const Size _defaultSize = Size(800, 600);
 
@@ -392,7 +392,6 @@ Future<void> captureScreenshot(
   final imageFuture = captureImage(actualFinder.evaluate().first);
 
   // Save the image to a file
-  final relativeDirectory = Directory.current;
   final file = File(fileName);
   await tester.runAsync(() async {
     final ui.Image image = await imageFuture;

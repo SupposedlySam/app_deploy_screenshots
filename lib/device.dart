@@ -102,82 +102,91 @@ class Device {
   /// iPhone Devices (6.9")
   static const Device iphone16ProMax = Device(
     name: 'iphone16_pro_max',
-    size: Size(1290, 2796),
+    size: Size(430, 932), // 1290/3, 2796/3
     displaySize: DisplaySize.sixNine,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.only(top: 59, bottom: 34),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 59 / 3, bottom: 34 / 3),
   );
 
   /// iPhone Devices (6.5")
   static const Device iphone14Plus = Device(
     name: 'iphone14_plus',
-    size: Size(1284, 2778),
+    size: Size(428, 926), // 1284/3, 2778/3
     displaySize: DisplaySize.sixFive,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.only(top: 47, bottom: 34),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 47 / 3, bottom: 34 / 3),
   );
 
   /// iPhone Devices (6.3")
   static const Device iphone16Pro = Device(
     name: 'iphone16_pro',
-    size: Size(1179, 2556),
+    size: Size(393, 852), // 1179/3, 2556/3
     displaySize: DisplaySize.sixThree,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.only(top: 59, bottom: 34),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 59 / 3, bottom: 34 / 3),
   );
 
   /// iPhone Devices (6.1")
   static const Device iphone14 = Device(
     name: 'iphone14',
-    size: Size(1170, 2532),
+    size: Size(390, 844), // 1170/3, 2532/3
     displaySize: DisplaySize.sixOne,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.only(top: 47, bottom: 34),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 47 / 3, bottom: 34 / 3),
   );
 
   /// iPhone Devices (5.5")
   static const Device iphone8Plus = Device(
     name: 'iphone8_plus',
-    size: Size(1242, 2208),
+    size: Size(414, 736), // 1242/3, 2208/3
     displaySize: DisplaySize.fiveFive,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.only(top: 20, bottom: 0),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 20 / 3, bottom: 0),
   );
 
   /// iPhone Devices (4.7")
   static const Device iphoneSE3 = Device(
     name: 'iphone_se_3',
-    size: Size(750, 1334),
+    size: Size(375, 667), // 750/2, 1334/2
     displaySize: DisplaySize.fourSeven,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.only(top: 20, bottom: 0),
+    devicePixelRatio: 2.0,
+    safeArea: EdgeInsets.only(top: 20 / 2, bottom: 0),
   );
 
   /// iPad Devices (13")
   static const Device ipadProM4 = Device(
     name: 'ipad_pro_m4',
-    size: Size(2064, 2752),
+    size: Size(1032, 1376), // 2064/2, 2752/2
     displaySize: DisplaySize.thirteen,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.all(20),
+    devicePixelRatio: 2.0,
+    safeArea: EdgeInsets.all(20 / 2),
   );
 
   /// iPad Devices (12.9")
   static const Device ipadPro12_9 = Device(
     name: 'ipad_pro_12_9',
-    size: Size(2048, 2732),
+    size: Size(1024, 1366), // 2048/2, 2732/2
     displaySize: DisplaySize.twelveNine,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.all(20),
+    devicePixelRatio: 2.0,
+    safeArea: EdgeInsets.all(20 / 2),
   );
 
   /// iPad Devices (11")
   static const Device ipadPro11 = Device(
     name: 'ipad_pro_11',
-    size: Size(1668, 2388),
+    size: Size(834, 1194), // 1668/2, 2388/2
     displaySize: DisplaySize.eleven,
     platform: DevicePlatform.ios,
-    safeArea: EdgeInsets.all(20),
+    devicePixelRatio: 2.0,
+    safeArea: EdgeInsets.all(20 / 2),
   );
 
   /// Mac (16:10 aspect ratio)
@@ -207,57 +216,57 @@ class Device {
   /// Android Phone Screenshots - 16:9 aspect ratio
   static const Device androidPhoneWide = Device(
     name: 'android_phone_16_9',
-    size: Size(1920, 1080), // 16:9 aspect ratio
+    size: Size(640, 360), // 1920/3, 1080/3
     displaySize: DisplaySize.sixOne,
     platform: DevicePlatform.android,
-    devicePixelRatio: 1.0,
-    safeArea: EdgeInsets.only(top: 24, bottom: 0),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 24 / 3, bottom: 0),
   );
 
   /// Android Phone Screenshots - 9:16 aspect ratio
   static const Device androidPhone = Device(
     name: 'android_phone_9_16',
-    size: Size(1080, 1920), // 9:16 aspect ratio
+    size: Size(360, 640), // 1080/3, 1920/3
     displaySize: DisplaySize.sixOne,
     platform: DevicePlatform.android,
-    devicePixelRatio: 1.0,
-    safeArea: EdgeInsets.only(top: 24, bottom: 0),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 24 / 3, bottom: 0),
   );
 
   /// Android Phone Screenshots - 18:9 aspect ratio
   static const Device androidPhoneTall = Device(
     name: 'android_phone_18_9',
-    size: Size(2160, 1080), // 18:9 aspect ratio
+    size: Size(720, 360), // 2160/3, 1080/3
     displaySize: DisplaySize.sixThree,
     platform: DevicePlatform.android,
-    devicePixelRatio: 1.0,
-    safeArea: EdgeInsets.only(top: 24, bottom: 0),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 24 / 3, bottom: 0),
   );
 
   /// Android Phone Screenshots - 20:9 aspect ratio
   static const Device androidPhoneExtra = Device(
     name: 'android_phone_20_9',
-    size: Size(2400, 1080), // 20:9 aspect ratio
+    size: Size(800, 360), // 2400/3, 1080/3
     displaySize: DisplaySize.sixFive,
     platform: DevicePlatform.android,
-    devicePixelRatio: 1.0,
-    safeArea: EdgeInsets.only(top: 24, bottom: 0),
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 24 / 3, bottom: 0),
   );
 
   /// Android Tablet Screenshots - 16:10 aspect ratio
   static const Device androidTablet = Device(
     name: 'android_tablet',
-    size: Size(2560, 1600), // 16:10 aspect ratio
+    size: Size(1280, 800), // 2560/2, 1600/2
     displaySize: DisplaySize.tenFive,
     platform: DevicePlatform.android,
-    devicePixelRatio: 1.0,
-    safeArea: EdgeInsets.all(24),
+    devicePixelRatio: 2.0,
+    safeArea: EdgeInsets.all(24 / 2),
   );
 
   /// Android TV Screenshots - 16:9 aspect ratio
   static const Device androidTV = Device(
     name: 'android_tv',
-    size: Size(1920, 1080), // Required TV resolution
+    size: Size(1920, 1080), // No scaling needed for TV
     displaySize: DisplaySize.thirteen,
     platform: DevicePlatform.android,
     devicePixelRatio: 1.0,

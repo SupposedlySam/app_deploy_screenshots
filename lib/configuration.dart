@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meta/meta.dart';
-import '../golden_toolkit.dart';
+import 'golden_toolkit/golden_toolkit.dart';
 
 /// Manages global state & behavior for the App Deploy Toolkit
 /// This is a singleton so that it can be easily configured in one place
