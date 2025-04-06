@@ -11,6 +11,8 @@ This package is meant to help you automate your app deployment process by taking
 
 # Getting Started
 
+Write a test and use the createAllByPlatformAndDevice or appDeployScreenshot functions. Once you run your test, use the screenshots in the generated `app_deploy_screenshots` directory to upload to the app stores.
+
 ## Set up mock data
 
 TODO
