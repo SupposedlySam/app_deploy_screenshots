@@ -20,7 +20,7 @@ void main() {
     await captureByPlatformAndDevice(tester, 'incremented_state');
 
     expect(true, isTrue);
-  });
+  }, tags: ['app_deploy_screenshots']);
 }
 
 class CounterApp extends StatelessWidget {

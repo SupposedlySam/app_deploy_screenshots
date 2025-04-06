@@ -1,2 +1,3 @@
 tags:
-  golden:
+  app_deploy_screenshots:
+    timeout: 2x
