@@ -1,14 +1,17 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:app_deploy_screenshots/configuration.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_deploy_screenshots/device.dart';
 import 'package:app_deploy_screenshots/widget_tester_extensions.dart';
 
 export 'package:app_deploy_screenshots/golden_toolkit/golden_toolkit.dart';
+export 'apple_store.dart';
+export 'test_setup.dart';
+export 'themes.dart';
 
 ///CustomPump is a function that lets you do custom pumping before golden evaluation.
 ///Sometimes, you want to do a golden test for different stages of animations, so its crucial to have a precise control over pumps and durations
@@ -146,7 +149,7 @@ Future<void> captureScreenshot(
         await file.writeAsBytes(bytes.buffer.asUint8List());
       }
     } catch (e) {
-      print(e);
+      debugPrint(e.toString());
     }
   });
 }
