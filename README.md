@@ -1,31 +1,39 @@
-Welcome to App Deploy Screenshots!
+# App Deploy Screenshots 📱
 
-This package is meant to help you automate your app deployment process by taking screenshots of your app for upload to the Apple App Store and Google Play Store.
+[![pub package](https://img.shields.io/pub/v/app_deploy_screenshots.svg)](https://pub.dev/packages/app_deploy_screenshots)
+[![License](https://img.shields.io/badge/license-BSD-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-# How does it work?
+**Automate your app store screenshot generation with Flutter's testing framework!**
 
-1. Similar to an E2E test, set up your app with mock data for each scenario you want to create a screenshot for.
-2. Add configuration for all device screen sizes and densities you want to upload to the app stores.
-3. Run everything locally to ensure your screenshots will turn out the way you want them.
-4. Create a step in your CI to do this for you so you can ensure your app store screenshots are always up to date.
+This package helps you create professional, consistent screenshots for the Apple App Store and Google Play Store by leveraging Flutter's testing capabilities. Say goodbye to manual screenshot taking and hello to automated, pixel-perfect app store images.
 
-# Getting Started
+## ✨ Features
 
-Write a test and use the createAllByPlatformAndDevice or appDeployScreenshot functions. Once you run your test, use the screenshots in the generated `app_deploy_screenshots` directory to upload to the app stores.
+- 🎯 **Apple App Store Ready** - Generates screenshots in required dimensions (6.5", 6.9", iPad)
+- 🤖 **Google Play Store Support** - Android phone, tablet, and Chromebook screenshots
+- 🔤 **Smart Font Loading** - Automatically loads your custom fonts for accurate text rendering
+- 🎨 **Screenshot-Optimized Themes** - Built-in themes that look great in app store listings
+- 🔧 **Test Setup Utilities** - Comprehensive mocking and setup helpers
+- 📐 **Multiple Device Support** - Generate screenshots for all required device sizes
+- 🚀 **CI/CD Integration** - Perfect for GitHub Actions and other CI systems
+- 🎭 **Mock Data Helpers** - Ready-to-use sample data for realistic screenshots
 
-## Screenshot Generation Setup
+## 🚀 Quick Start
 
-We utilize Flutter's test framework to script your app states for consistent, repeatable screenshot generation. Here's how to set it up:
+### 1. Installation
 
-1. Create a `dart_test.yaml` file in your project root:
+Add to your `pubspec.yaml`:
 
 ```yaml
-tags:
-  app_deploy_screenshots:
-    timeout: 5x
+dev_dependencies:
+  app_deploy_screenshots: ^1.0.0
+  flutter_test:
+    sdk: flutter
 ```
 
-2. Create an `app_deploy_screenshots_test.dart` file in your `test` directory:
+### 2. Basic Setup
+
+Create `test/screenshot_test.dart`:
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
@@ -33,164 +41,407 @@ import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
 import 'package:your_app/main.dart';
 
 void main() {
-  testWidgets(
-    'Generate app store screenshots',
-    (tester) async {
-      await tester.waitForAssets();
+  testWidgets('Generate App Store screenshots', (tester) async {
+    // Setup screenshot environment
+    await ScreenshotTestSetup.initialize();
 
-      // Set up your widget with mock data
-      await tester.pumpWidgetBuilder(const YourApp());
+    // Create your app with mock data
+    await tester.pumpWidget(
+      MyApp().withScreenshotTheme(
+        primaryColor: Colors.blue,
+      ),
+    );
 
-      await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
-      // Take initial state screenshot
-      await captureByPlatformAndDevice(
-        tester,
-        'initial_state',
-      );
+    // Capture screenshots for Apple App Store
+    await tester.captureAppleStoreScreenshots('home_screen');
 
-      // Navigate, interact, or modify your app state
-      await tester.tap(find.byType(ElevatedButton));
-      await tester.pumpAndSettle();
-
-      // Take another screenshot in the new state
-      await captureByPlatformAndDevice(
-        tester,
-        'incremented_state',
-      );
-    },
-    tags: ['app_deploy_screenshots'], // Required tag for CI integration
-  );
+  }, tags: ['screenshots']);
 }
 ```
 
-3. Optionally, create a `flutter_test_config.dart` file in your `test` directory to load app fonts:
+### 3. Configure Font Loading
+
+Create `test/flutter_test_config.dart`:
 
 ```dart
 import 'dart:async';
-
 import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
-  return AppDeployToolkit.runWithConfiguration(
-    () async {
-      await loadAppFonts();
-      await testMain();
-    },
-    config: AppDeployToolkitConfiguration(
-      enableRealShadows: true,
-    ),
-  );
+  return AppDeployToolkit.runWithConfiguration(() async {
+    await loadAppFonts(verbose: true);
+    await testMain();
+  }, config: AppDeployToolkitConfiguration(enableRealShadows: true));
 }
 ```
 
-This ensures your screenshots will render with the correct fonts and shadows. Without this, text in your screenshots might not appear as expected.
-
-4. Run the screenshot generation locally:
+### 4. Generate Screenshots
 
 ```bash
-flutter test --tags app_deploy_screenshots
+flutter test --tags screenshots
 ```
 
-Screenshots will be generated in the `app_deploy_screenshots` directory, organized by platform and device:
+Screenshots will be saved to `test/app_deploy_screenshots/app_store_exports/`
 
-```
-app_deploy_screenshots/
-├── ios/
-│   ├── 6.9"_iphone16_pro_max/
-│   │   ├── initial_state.png
-│   │   └── incremented_state.png
-│   └── [other_ios_devices]/
-└── android/
-    ├── android_phone_16_9/
-    │   ├── initial_state.png
-    │   └── incremented_state.png
-    └── [other_android_devices]/
-```
+## 📖 Comprehensive Guide
 
-You can also use `createAllByPlatformAndDevice` to generate screenshots for all configured devices at once:
+### Apple App Store Screenshots
+
+The `AppleStoreScreenshots` class provides specialized methods for Apple's requirements:
 
 ```dart
-await createAllByPlatformAndDevice(
-  'initial_state',
+// Generate screenshots for required iPhone devices (6.5" and 6.9")
+await AppleStoreScreenshots.captureForAppStore(
   tester,
-  // Optional: filter by platform
-  // platform: DevicePlatform.ios,
+  'main_screen',
+  includeIpad: true, // Optional: include iPad screenshots
+);
+
+// Generate the essential 3 screenshots Apple requires
+await AppleStoreScreenshots.captureEssentialScreenshots(
+  tester,
+  homeScreen: MyHomePage(),
+  featureScreen: MyFeaturePage(),
+  settingsScreen: MySettingsPage(),
+);
+
+// Check Apple's current requirements
+final requirements = AppleStoreScreenshots.getRequirements();
+print('Minimum screenshots needed: ${requirements['minimum_screenshots']}');
+```
+
+### Screenshot-Optimized Themes
+
+Use built-in themes designed to look great in app store listings:
+
+```dart
+// iOS App Store optimized theme
+final theme = ScreenshotThemes.iosAppStoreLight(
+  primaryColor: Colors.blue,
+  fontFamily: 'YourCustomFont',
+);
+
+// Android Play Store optimized theme
+final theme = ScreenshotThemes.androidPlayStore(
+  primaryColor: Colors.green,
+  useMaterial3: true,
+);
+
+// Apply to your widget
+Widget.withScreenshotTheme(
+  theme: theme,
+  localizationsDelegates: [...],
 );
 ```
 
-## Build Into Your CI (optional)
+### Advanced Setup & Configuration
 
-To get started, add these workflows to your GitHub Actions:
+For complex apps, use the comprehensive setup utilities:
 
-```yaml
-# Generate app store screenshots
-uses: your-username/app-deploy-screenshots/.github/workflows/app_deploy_screenshots.yml@v1
+```dart
+void main() {
+  setUpAll(() async {
+    // Initialize with full configuration
+    await ScreenshotTestSetup.initialize(
+      loadFonts: true,
+      verbose: true,
+      mockPlatformChannels: true,
+    );
+  });
 
-# Upload screenshots to app stores
-uses: your-username/app-deploy-screenshots/.github/workflows/upload_screenshots.yml@v1
+  testWidgets('Advanced screenshot test', (tester) async {
+    // Create mock data
+    final mockData = ScreenshotTestSetup.createMockData();
+
+    // Setup widget with optimized configuration
+    final widget = ScreenshotTestSetup.createScreenshotWidget(
+      MyAppWithMockData(data: mockData),
+      primaryColor: Colors.purple,
+      fontFamily: 'Roboto',
+    );
+
+    await tester.pumpWidget(widget);
+
+    // Ensure everything is properly loaded
+    await ScreenshotTestSetup.prepareWidgetForScreenshot(tester);
+
+    // Capture screenshots
+    await tester.captureAppleStoreScreenshots('mock_data_screen');
+  });
+}
 ```
 
-### Prerequisites
+### Multi-Device Screenshots
 
-This workflow utilizes [Fastlane](https://fastlane.tools/) for uploading screenshots. Before proceeding, ensure you have:
+Generate screenshots for all platforms and devices:
 
-- Set up Fastlane for [iOS](https://docs.fastlane.tools/getting-started/ios/setup/)
-- Set up Fastlane for [Android](https://docs.fastlane.tools/getting-started/android/setup/)
+```dart
+// All iOS and Android devices
+await captureByPlatformAndDevice(tester, 'cross_platform');
 
-1. Set up the following secrets in your GitHub repository:
+// Custom device list
+await appDeployScreenshot(
+  tester,
+  'custom_devices',
+  devices: [
+    Device.iphone14Plus,
+    Device.iphone16ProMax,
+    Device.androidPhone,
+    Device.androidTablet7,
+  ],
+);
+```
 
-   **For iOS (App Store Connect)**
+### Font Loading Options
 
-   ```yaml
-   APP_STORE_CONNECT_API_KEY_KEY_ID: Your App Store Connect API key ID
-   APP_STORE_CONNECT_API_KEY_ISSUER_ID: Your App Store Connect API key issuer ID
-   APP_STORE_CONNECT_API_KEY_KEY: Your App Store Connect API key content
-   IOS_P12_CERTIFICATE: Your iOS distribution certificate (base64 encoded)
-   IOS_P12_PASSWORD: Password for your P12 certificate
-   ```
+Enhanced font loading with error handling:
 
-   **For Android (Google Play Store)**
+```dart
+// Basic font loading
+await loadAppFonts();
 
-   ```yaml
-   GOOGLE_PLAY_JSON_KEY: Your Google Play service account JSON key file content
-   ```
+// Advanced font loading with options
+await loadAppFonts(
+  verbose: true,      // Print detailed loading info
+  skipOnError: true,  // Continue if some fonts fail
+);
+```
 
-2. Create a `Gemfile` in your repository root:
-   ```ruby
-   source "https://rubygems.org"
-   gem "fastlane"
-   ```
+### Mock Data Helpers
 
-For configuration details, check out the workflow files directly.
+Use built-in mock data for realistic screenshots:
 
-### Setup Instructions
+```dart
+final mockData = ScreenshotTestSetup.createMockData();
 
-1. Install GitHub CLI (gh):
+// Sample user names
+final users = mockData.userNames; // ['Alice Johnson', 'Bob Smith', ...]
 
-   ```bash
-   # Install gh CLI
-   brew install gh
+// Sample messages for chat apps
+final messages = mockData.sampleMessages; // ['Hey! How was your weekend? 😊', ...]
 
-   # Authenticate with GitHub
-   gh auth login
-   ```
+// Sample timestamps
+final times = mockData.timestamps; // ['2:30 PM', 'Yesterday', ...]
 
-2. Install Ruby and Bundler:
+// Sample colors for UI
+final colors = mockData.accentColors; // [Colors.yellow, Colors.blue, ...]
+```
 
-   ```bash
-   # Install Ruby (if not already installed)
-   brew install ruby
+### Directory Structure
 
-   # Install Bundler
-   gem install bundler
-   ```
+Screenshots are organized for easy app store upload:
 
-3. Create a `Gemfile` in your repository root:
+```
+test/app_deploy_screenshots/app_store_exports/
+├── 6.5_inch_iphone14_plus/
+│   ├── home_screen.png          (1284×2778px)
+│   ├── feature_screen.png
+│   └── settings_screen.png
+├── 6.9_inch_iphone16_pro_max/
+│   ├── home_screen.png          (1290×2796px)
+│   ├── feature_screen.png
+│   └── settings_screen.png
+└── android/
+    ├── phone/
+    └── tablet/
+```
 
-   ```ruby
-   source "https://rubygems.org"
-   gem "fastlane"
-   ```
+## 🔧 GitHub Actions Integration
 
-4. Run `bundle install` to generate the `Gemfile.lock`
+### Basic Workflow
+
+Create `.github/workflows/screenshots.yml`:
+
+```yaml
+name: Generate Screenshots
+
+on:
+  pull_request:
+    paths: ["lib/**", "test/**"]
+  push:
+    branches: [main]
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate screenshots
+        run: flutter test --tags screenshots
+
+      - name: Upload screenshot artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screenshots
+          path: test/app_deploy_screenshots/app_store_exports/
+```
+
+### Advanced CI Setup
+
+For apps with special requirements:
+
+```yaml
+- name: Generate screenshots with custom setup
+  run: |
+    # Create dart_test.yaml for timeout configuration
+    echo "tags:" > dart_test.yaml
+    echo "  screenshots:" >> dart_test.yaml
+    echo "    timeout: 5x" >> dart_test.yaml
+
+    # Run screenshot generation
+    flutter test \
+      --tags screenshots \
+      --reporter=expanded \
+      --file-reporter=json:test-results.json
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Fonts not rendering properly**
+
+```dart
+// Ensure flutter_test_config.dart is set up correctly
+Future<void> testExecutable(FutureOr<void> Function() testMain) async {
+  return AppDeployToolkit.runWithConfiguration(() async {
+    await loadAppFonts(verbose: true, skipOnError: true);
+    await testMain();
+  }, config: AppDeployToolkitConfiguration(enableRealShadows: true));
+}
+```
+
+**Plugin exceptions during tests**
+
+```dart
+// Use ScreenshotTestSetup.initialize() to mock common channels
+setUpAll(() async {
+  await ScreenshotTestSetup.initialize(
+    mockPlatformChannels: true, // This fixes most plugin issues
+  );
+});
+```
+
+**Screenshots are blank or contain boxes**
+
+```dart
+// Ensure proper setup and waiting
+await ScreenshotTestSetup.prepareWidgetForScreenshot(tester);
+await tester.pumpAndSettle(const Duration(seconds: 2));
+```
+
+**Memory issues with large tests**
+
+```dart
+// Add timeout configuration in dart_test.yaml
+tags:
+  screenshots:
+    timeout: 5x
+```
+
+### Debug Mode
+
+Enable verbose logging to diagnose issues:
+
+```dart
+await loadAppFonts(verbose: true);
+await ScreenshotTestSetup.initialize(verbose: true);
+```
+
+## 📚 API Reference
+
+### Core Functions
+
+| Function                                     | Description                                 | Use Case                    |
+| -------------------------------------------- | ------------------------------------------- | --------------------------- |
+| `appDeployScreenshot()`                      | Generate screenshots for custom device list | Full control over devices   |
+| `captureByPlatformAndDevice()`               | Generate for all iOS and Android devices    | Cross-platform apps         |
+| `AppleStoreScreenshots.captureForAppStore()` | Apple App Store specific screenshots        | iOS app submission          |
+| `loadAppFonts()`                             | Load custom fonts for accurate rendering    | Apps with custom typography |
+
+### Theme Utilities
+
+| Function                              | Description               | Use Case                |
+| ------------------------------------- | ------------------------- | ----------------------- |
+| `ScreenshotThemes.iosAppStoreLight()` | iOS-optimized light theme | iPhone app screenshots  |
+| `ScreenshotThemes.iosAppStoreDark()`  | iOS-optimized dark theme  | Dark mode screenshots   |
+| `ScreenshotThemes.androidPlayStore()` | Android-optimized theme   | Play Store screenshots  |
+| `Widget.withScreenshotTheme()`        | Apply theme to any widget | Quick theme application |
+
+### Device Support
+
+| Device Category | Devices Included                  | Dimensions           |
+| --------------- | --------------------------------- | -------------------- |
+| iPhone Required | iPhone 14 Plus, iPhone 16 Pro Max | 1284×2778, 1290×2796 |
+| iPhone Optional | iPhone 13 Mini, iPhone 15 Pro     | Various              |
+| iPad            | iPad Pro 13"                      | 2064×2752            |
+| Android Phone   | Various aspect ratios             | 16:9, 18:9, 19:9     |
+| Android Tablet  | 7", 10" tablets                   | Multiple sizes       |
+
+## 🎯 Best Practices
+
+### 1. Consistent Mock Data
+
+```dart
+final mockData = ScreenshotTestSetup.createMockData();
+// Use the same mock data across all screenshots for consistency
+```
+
+### 2. Realistic Content
+
+```dart
+// Use realistic, localized content
+final messages = [
+  'Welcome to our amazing app! 🎉',
+  'Discover new features and improvements',
+  'Connect with friends and family easily',
+];
+```
+
+### 3. Brand Consistency
+
+```dart
+// Use your app's actual colors and fonts
+final theme = ScreenshotThemes.iosAppStoreLight(
+  primaryColor: MyAppColors.primary,
+  fontFamily: 'MyAppFont',
+);
+```
+
+### 4. Multiple Scenarios
+
+```dart
+// Capture different user scenarios
+await captureAppleStoreScreenshots('onboarding');
+await captureAppleStoreScreenshots('main_features');
+await captureAppleStoreScreenshots('premium_features');
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+## 📄 License
+
+This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built on top of Flutter's excellent testing framework
+- Inspired by the golden_toolkit package for font loading
+- Device configurations based on official Apple and Google guidelines
+
+---
+
+**Made with ❤️ for the Flutter community**
+
+_Need help? [Open an issue](https://github.com/your-repo/app_deploy_screenshots/issues) or check our [documentation](https://pub.dev/packages/app_deploy_screenshots)._
