@@ -5,6 +5,7 @@
 /// license that can be found in the LICENSE file or at
 /// https://opensource.org/licenses/BSD-3-Clause
 /// ***************************************************
+// ignore:unnecessary_library_name
 library golden_toolkit;
 
 export '../configuration.dart';

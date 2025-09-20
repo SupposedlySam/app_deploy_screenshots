@@ -7,14 +7,9 @@
 /// ***************************************************
 library;
 
-import 'dart:ui';
-
 import 'package:flutter/widgets.dart';
 
-enum DevicePlatform {
-  ios,
-  android,
-}
+enum DevicePlatform { ios, android }
 
 /// Represents standard iOS device display sizes
 enum DisplaySize {

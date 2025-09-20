@@ -107,7 +107,7 @@ class AppDeployToolkitConfiguration {
   final bool enableRealShadows;
 
   /// the tags golden test are tagged with, defaults to ['golden'],
-  /// must be null, String or Iterable<String>
+  /// must be null, String or Iterable\<String\>
   final Object? tags;
 
   /// Copies the configuration with the given values overridden.
