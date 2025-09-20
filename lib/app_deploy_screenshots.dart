@@ -21,6 +21,9 @@ typedef CustomPump = Future<void> Function(WidgetTester);
 /// Function definition for allowing for device or test setup to occur for each device configuration under test
 typedef DeviceSetup = Future<void> Function(Device device, WidgetTester tester);
 
+/// Function definition for allowing for custom file name building
+typedef FileNameBuilder = String Function(Device device);
+
 class AppDeployScreenshots {
   static const List<String> _overridableFonts = [
     'Roboto',
@@ -79,7 +82,8 @@ class AppDeployScreenshots {
     String name, {
     Finder? finder,
     CustomPump? customPump,
-    String Function(Device device)? fileNameBuilder,
+    DeviceSetup? deviceSetup,
+    FileNameBuilder? fileNameBuilder,
   }) async {
     final platformDevices = [
       DevicePlatform.ios,
@@ -89,6 +93,9 @@ class AppDeployScreenshots {
     return byDevices(
       tester,
       name,
+      finder: finder,
+      customPump: customPump,
+      deviceSetup: deviceSetup,
       devices: platformDevices,
       fileNameBuilder: (device) =>
           'app_deploy_screenshots/${device.platform.name}/${device.displaySize.label}_${device.name}/$name.png',
@@ -112,7 +119,7 @@ class AppDeployScreenshots {
     CustomPump? customPump,
     DeviceSetup? deviceSetup,
     List<Device>? devices,
-    String Function(Device device)? fileNameBuilder,
+    FileNameBuilder? fileNameBuilder,
   }) async {
     assert(devices == null || devices.isNotEmpty);
     final deviceSetupPump = deviceSetup ?? _twoPumps;
