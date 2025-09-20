@@ -1,6 +1,6 @@
 name: app_deploy_screenshots
 description: 'Generates App Deployment Screenshots'
-version: 0.0.1
+version: 1.0.0
 
 environment:
   sdk: ^3.9.2
@@ -21,3 +21,9 @@ flutter:
     - family: Roboto
       fonts:
         - asset: fonts/Roboto-Regular.ttf
+    - family: GoogleSans
+      fonts:
+        - asset: fonts/GoogleSans-Regular.ttf
+    - family: GoogleSansDisplay
+      fonts:
+        - asset: fonts/GoogleSansDisplay-Regular.ttf

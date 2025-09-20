@@ -1,447 +1,549 @@
-# App Deploy Screenshots 📱
+# App Deploy Screenshots
 
 [![pub package](https://img.shields.io/pub/v/app_deploy_screenshots.svg)](https://pub.dev/packages/app_deploy_screenshots)
-[![License](https://img.shields.io/badge/license-BSD-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-**Automate your app store screenshot generation with Flutter's testing framework!**
+A Flutter package for automatically generating app store screenshots across multiple devices and platforms. Perfect for creating deployment-ready screenshots for iOS App Store and Google Play Store submissions.
 
-This package helps you create professional, consistent screenshots for the Apple App Store and Google Play Store by leveraging Flutter's testing capabilities. Say goodbye to manual screenshot taking and hello to automated, pixel-perfect app store images.
+## Features
 
-## ✨ Features
+- 📱 **Multi-device Support**: Generate screenshots for iPhones, iPads, Android phones, tablets, and more
+- 🎯 **App Store Guidelines Compliant**: Automatically creates screenshots meeting iOS and Android app store requirements
+- 🎨 **Custom Font Loading**: Load custom fonts for better visual representation in screenshots
+- ⚡ **Byte-based Screenshot Capture**: Generates actual PNG files, not just golden file comparisons
+- 🔧 **Flexible Configuration**: Customize devices, finders, and screenshot capture behavior
+- 🤖 **Test Integration**: Works seamlessly with Flutter widget tests
 
-- 🎯 **Apple App Store Ready** - Generates screenshots in required dimensions (6.5", 6.9", iPad)
-- 🤖 **Google Play Store Support** - Android phone, tablet, and Chromebook screenshots
-- 🔤 **Smart Font Loading** - Automatically loads your custom fonts for accurate text rendering
-- 🎨 **Screenshot-Optimized Themes** - Built-in themes that look great in app store listings
-- 🔧 **Test Setup Utilities** - Comprehensive mocking and setup helpers
-- 📐 **Multiple Device Support** - Generate screenshots for all required device sizes
-- 🚀 **CI/CD Integration** - Perfect for GitHub Actions and other CI systems
-- 🎭 **Mock Data Helpers** - Ready-to-use sample data for realistic screenshots
+## Installation
 
-## 🚀 Quick Start
-
-### 1. Installation
-
-Add to your `pubspec.yaml`:
+Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dev_dependencies:
   app_deploy_screenshots: ^1.0.0
-  flutter_test:
-    sdk: flutter
 ```
 
-### 2. Basic Setup
+Then run:
 
-Create `test/screenshot_test.dart`:
-
-```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
-import 'package:your_app/main.dart';
-
-void main() {
-  testWidgets('Generate App Store screenshots', (tester) async {
-    // Setup screenshot environment
-    await ScreenshotTestSetup.initialize();
-
-    // Create your app with mock data
-    await tester.pumpWidget(
-      MyApp().withScreenshotTheme(
-        primaryColor: Colors.blue,
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    // Capture screenshots for Apple App Store
-    await tester.captureAppleStoreScreenshots('home_screen');
-
-  }, tags: ['screenshots']);
-}
+```bash
+flutter pub get
 ```
 
-### 3. Configure Font Loading
+## Quick Start
 
-Create `test/flutter_test_config.dart`:
+### 1. Setup Test Configuration
+
+Create a `test/flutter_test_config.dart` file:
 
 ```dart
 import 'dart:async';
 import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
-  return AppDeployToolkit.runWithConfiguration(() async {
-    await loadAppFonts(verbose: true);
-    await testMain();
-  }, config: AppDeployToolkitConfiguration(enableRealShadows: true));
+  await AppDeployScreenshots.initialize();
+
+  return testMain();
 }
 ```
 
-### 4. Generate Screenshots
+Alternatively, you can use the `setUpAll` method inside your test.
+
+### 2. Create Screenshot Tests
+
+Create a test file (e.g., `test/screenshots_test.dart`):
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
+
+void main() {
+  group('App Store Screenshots', () {
+    testWidgets('Generate all platform screenshots', (tester) async {
+      await tester.pumpWidget(MyApp());
+      await tester.pumpAndSettle();
+
+      // Generate for all iOS and Android devices at once
+      await AppDeployScreenshots.byPlatform(tester, 'home_screen');
+    });
+
+    testWidgets('Generate specific device screenshots', (tester) async {
+      await tester.pumpWidget(MyApp());
+      await tester.pumpAndSettle();
+
+      // Target specific devices for feature showcase
+      await AppDeployScreenshots.byDevices(
+        tester,
+        'feature_showcase',
+        devices: [
+          Device.iphone16Pro,
+          Device.ipadProM4,
+          Device.androidPhone,
+        ],
+      );
+    });
+
+    testWidgets('Generate individual device screenshots', (tester) async {
+      await tester.pumpWidget(MyApp());
+      await tester.pumpAndSettle();
+
+      // Capture single device with custom filename
+      await AppDeployScreenshots.byDevice(
+        tester,
+        'hero_screenshot',
+        device: Device.iphone16ProMax,
+        fileName: 'hero_iphone_pro_max.png',
+      );
+    });
+
+    testWidgets('Generate workflow screenshots', (tester) async {
+      await tester.pumpWidget(MyApp());
+      await tester.pumpAndSettle();
+
+      // Onboarding flow
+      await AppDeployScreenshots.byDevices(
+        tester,
+        'onboarding_step1',
+        devices: [Device.iphone16Pro, Device.androidPhone],
+      );
+
+      // Navigate through the flow
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+
+      await AppDeployScreenshots.byDevices(
+        tester,
+        'onboarding_step2',
+        devices: [Device.iphone16Pro, Device.androidPhone],
+      );
+    });
+  });
+}
+```
+
+### 3. Run Screenshot Generation
 
 ```bash
-flutter test --tags screenshots
+flutter test test/screenshots_test.dart
 ```
 
-Screenshots will be saved to `test/app_deploy_screenshots/app_store_exports/`
-
-## 📖 Comprehensive Guide
-
-### Apple App Store Screenshots
-
-The `AppleStoreScreenshots` class provides specialized methods for Apple's requirements:
-
-```dart
-// Generate screenshots for required iPhone devices (6.5" and 6.9")
-await AppleStoreScreenshots.captureForAppStore(
-  tester,
-  'main_screen',
-  includeIpad: true, // Optional: include iPad screenshots
-);
-
-// Generate the essential 3 screenshots Apple requires
-await AppleStoreScreenshots.captureEssentialScreenshots(
-  tester,
-  homeScreen: MyHomePage(),
-  featureScreen: MyFeaturePage(),
-  settingsScreen: MySettingsPage(),
-);
-
-// Check Apple's current requirements
-final requirements = AppleStoreScreenshots.getRequirements();
-print('Minimum screenshots needed: ${requirements['minimum_screenshots']}');
-```
-
-### Screenshot-Optimized Themes
-
-Use built-in themes designed to look great in app store listings:
-
-```dart
-// iOS App Store optimized theme
-final theme = ScreenshotThemes.iosAppStoreLight(
-  primaryColor: Colors.blue,
-  fontFamily: 'YourCustomFont',
-);
-
-// Android Play Store optimized theme
-final theme = ScreenshotThemes.androidPlayStore(
-  primaryColor: Colors.green,
-  useMaterial3: true,
-);
-
-// Apply to your widget
-Widget.withScreenshotTheme(
-  theme: theme,
-  localizationsDelegates: [...],
-);
-```
-
-### Advanced Setup & Configuration
-
-For complex apps, use the comprehensive setup utilities:
-
-```dart
-void main() {
-  setUpAll(() async {
-    // Initialize with full configuration
-    await ScreenshotTestSetup.initialize(
-      loadFonts: true,
-      verbose: true,
-      mockPlatformChannels: true,
-    );
-  });
-
-  testWidgets('Advanced screenshot test', (tester) async {
-    // Create mock data
-    final mockData = ScreenshotTestSetup.createMockData();
-
-    // Setup widget with optimized configuration
-    final widget = ScreenshotTestSetup.createScreenshotWidget(
-      MyAppWithMockData(data: mockData),
-      primaryColor: Colors.purple,
-      fontFamily: 'Roboto',
-    );
-
-    await tester.pumpWidget(widget);
-
-    // Ensure everything is properly loaded
-    await ScreenshotTestSetup.prepareWidgetForScreenshot(tester);
-
-    // Capture screenshots
-    await tester.captureAppleStoreScreenshots('mock_data_screen');
-  });
-}
-```
-
-### Multi-Device Screenshots
-
-Generate screenshots for all platforms and devices:
-
-```dart
-// All iOS and Android devices
-await captureByPlatformAndDevice(tester, 'cross_platform');
-
-// Custom device list
-await appDeployScreenshot(
-  tester,
-  'custom_devices',
-  devices: [
-    Device.iphone14Plus,
-    Device.iphone16ProMax,
-    Device.androidPhone,
-    Device.androidTablet7,
-  ],
-);
-```
-
-### Font Loading Options
-
-Enhanced font loading with error handling:
-
-```dart
-// Basic font loading
-await loadAppFonts();
-
-// Advanced font loading with options
-await loadAppFonts(
-  verbose: true,      // Print detailed loading info
-  skipOnError: true,  // Continue if some fonts fail
-);
-```
-
-### Mock Data Helpers
-
-Use built-in mock data for realistic screenshots:
-
-```dart
-final mockData = ScreenshotTestSetup.createMockData();
-
-// Sample user names
-final users = mockData.userNames; // ['Alice Johnson', 'Bob Smith', ...]
-
-// Sample messages for chat apps
-final messages = mockData.sampleMessages; // ['Hey! How was your weekend? 😊', ...]
-
-// Sample timestamps
-final times = mockData.timestamps; // ['2:30 PM', 'Yesterday', ...]
-
-// Sample colors for UI
-final colors = mockData.accentColors; // [Colors.yellow, Colors.blue, ...]
-```
-
-### Directory Structure
-
-Screenshots are organized for easy app store upload:
+Screenshots will be generated in the `app_deploy_screenshots/` directory with the following structure:
 
 ```
-test/app_deploy_screenshots/app_store_exports/
-├── 6.5_inch_iphone14_plus/
-│   ├── home_screen.png          (1284×2778px)
-│   ├── feature_screen.png
-│   └── settings_screen.png
-├── 6.9_inch_iphone16_pro_max/
-│   ├── home_screen.png          (1290×2796px)
-│   ├── feature_screen.png
-│   └── settings_screen.png
+app_deploy_screenshots/
+├── ios/
+│   ├── 6.9"_iphone16_pro_max/
+│   │   ├── home_screen.png
+│   │   └── settings_screen.png
+│   └── 13.0"_ipad_pro_m4/
+│       ├── home_screen.png
+│       └── settings_screen.png
 └── android/
-    ├── phone/
-    └── tablet/
+    ├── 6.5"_android_phone_20_9/
+    │   ├── home_screen.png
+    │   └── settings_screen.png
+    └── 10.5"_android_tablet/
+        ├── home_screen.png
+        └── settings_screen.png
 ```
 
-## 🔧 GitHub Actions Integration
+## API Reference
 
-### Basic Workflow
+### AppDeployScreenshots.byPlatform()
 
-Create `.github/workflows/screenshots.yml`:
-
-```yaml
-name: Generate Screenshots
-
-on:
-  pull_request:
-    paths: ["lib/**", "test/**"]
-  push:
-    branches: [main]
-
-jobs:
-  screenshots:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.24.0"
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Generate screenshots
-        run: flutter test --tags screenshots
-
-      - name: Upload screenshot artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-store-screenshots
-          path: test/app_deploy_screenshots/app_store_exports/
-```
-
-### Advanced CI Setup
-
-For apps with special requirements:
-
-```yaml
-- name: Generate screenshots with custom setup
-  run: |
-    # Create dart_test.yaml for timeout configuration
-    echo "tags:" > dart_test.yaml
-    echo "  screenshots:" >> dart_test.yaml
-    echo "    timeout: 5x" >> dart_test.yaml
-
-    # Run screenshot generation
-    flutter test \
-      --tags screenshots \
-      --reporter=expanded \
-      --file-reporter=json:test-results.json
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Fonts not rendering properly**
+Generates screenshots for all iOS and Android devices following app store guidelines.
 
 ```dart
-// Ensure flutter_test_config.dart is set up correctly
-Future<void> testExecutable(FutureOr<void> Function() testMain) async {
-  return AppDeployToolkit.runWithConfiguration(() async {
-    await loadAppFonts(verbose: true, skipOnError: true);
-    await testMain();
-  }, config: AppDeployToolkitConfiguration(enableRealShadows: true));
-}
+await AppDeployScreenshots.byPlatform(
+  tester,
+  'screenshot_name',
+  finder: find.byType(Scaffold), // Optional: custom finder
+  customPump: (tester) async {   // Optional: custom pump function
+    await tester.pump(Duration(milliseconds: 100));
+  },
+);
 ```
 
-**Plugin exceptions during tests**
+### AppDeployScreenshots.byDevices()
+
+Generates screenshots for specific devices.
 
 ```dart
-// Use ScreenshotTestSetup.initialize() to mock common channels
-setUpAll(() async {
-  await ScreenshotTestSetup.initialize(
-    mockPlatformChannels: true, // This fixes most plugin issues
+await AppDeployScreenshots.byDevices(
+  tester,
+  'screenshot_name',
+  devices: [
+    Device.iphone16Pro,
+    Device.ipadProM4,
+    Device.androidPhone,
+  ],
+  finder: find.byType(MyWidget),        // Optional
+  deviceSetup: (device, tester) async { // Optional: setup per device
+    // Custom setup logic
+  },
+);
+```
+
+### AppDeployScreenshots.byDevice()
+
+Generates a single screenshot for a specific device.
+
+```dart
+await AppDeployScreenshots.byDevice(
+  tester,
+  'screenshot_name',
+  device: Device.iphone16Pro,
+  fileName: 'custom_screenshot.png',
+  waitForImages: true,
+);
+```
+
+## Device Support
+
+### iOS Devices
+
+- iPhone SE (4.7")
+- iPhone 8 Plus (5.5")
+- iPhone 11 (6.1")
+- iPhone 14 (6.1")
+- iPhone 14 Plus (6.5")
+- iPhone 16 Pro (6.3")
+- iPhone 16 Pro Max (6.9")
+- iPad Pro 11" (11.0")
+- iPad Pro 12.9" (12.9")
+- iPad Pro M4 (13.0")
+- Apple TV (13.0")
+- Vision Pro (13.0")
+- Mac Default (13.0")
+
+### Android Devices
+
+- Android Phone 16:9 (6.1")
+- Android Phone 9:16 (6.1")
+- Android Phone 18:9 (6.3")
+- Android Phone 20:9 (6.5")
+- Android Tablet (10.5")
+- Android TV (13.0")
+
+## App Store Guidelines Compliance
+
+The package automatically generates screenshots that meet app store requirements:
+
+### iOS App Store
+
+- **iPhone 6.9"**: 1320×2868px or 2868×1320px, 1290×2796px or 2796×1290px
+- **iPhone 6.5"**: 1242×2688px or 2688×1242px, 1284×2778px or 2778×1284px
+- **iPad 13"**: 2064×2752px or 2752×2064px, 2048×2732px or 2732×2048px
+
+### Google Play Store
+
+- **Phone**: PNG or JPEG, up to 8 MB, 16:9 or 9:16 aspect ratio, 320px-3840px per side
+- **7" Tablet**: PNG or JPEG, up to 8 MB, 16:9 or 9:16 aspect ratio, 320px-3840px per side
+- **10" Tablet**: PNG or JPEG, up to 8 MB, 16:9 or 9:16 aspect ratio, 1080px-7680px per side
+
+## Custom Font Loading
+
+To use custom fonts in your screenshots, add them to your `pubspec.yaml`:
+
+```yaml
+flutter:
+  fonts:
+    - family: MyCustomFont
+      fonts:
+        - asset: fonts/MyCustomFont-Regular.ttf
+```
+
+The package will automatically load and use your custom fonts instead of Flutter's default test fonts.
+
+## Advanced Configuration
+
+### Custom Pump Functions
+
+Control the timing and animation states:
+
+```dart
+// For animated screens
+await AppDeployScreenshots.byPlatform(
+  tester,
+  'animated_screen',
+  customPump: (tester) async {
+    await tester.pump(Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+  },
+);
+
+// For loading states
+await AppDeployScreenshots.byDevice(
+  tester,
+  'loading_state',
+  device: Device.iphone16Pro,
+  fileName: 'loading_example.png',
+  customPump: (tester) async {
+    // Capture mid-animation
+    await tester.pump(Duration(milliseconds: 100));
+  },
+);
+```
+
+### Device Setup
+
+Perform custom setup for each device:
+
+```dart
+await AppDeployScreenshots.byDevices(
+  tester,
+  'responsive_layout',
+  devices: [Device.iphone16Pro, Device.ipadProM4, Device.androidTablet],
+  deviceSetup: (device, tester) async {
+    // Platform-specific setup
+    if (device.platform == DevicePlatform.ios) {
+      await tester.tap(find.text('iOS Feature'));
+    } else {
+      await tester.tap(find.text('Android Feature'));
+    }
+
+    // Device-size specific setup
+    if (device.displaySize.inches > 10) {
+      await tester.tap(find.text('Tablet View'));
+    }
+  },
+);
+```
+
+### Custom Finders
+
+Capture specific parts of your UI:
+
+```dart
+// Capture just the main content area
+await AppDeployScreenshots.byPlatform(
+  tester,
+  'main_content',
+  finder: find.byKey(Key('main_content')),
+);
+
+// Capture a specific widget
+await AppDeployScreenshots.byDevices(
+  tester,
+  'custom_widget',
+  devices: [Device.iphone16Pro],
+  finder: find.byType(CustomWidget),
+);
+
+// Capture modal or dialog
+await AppDeployScreenshots.byDevice(
+  tester,
+  'modal_example',
+  device: Device.ipadProM4,
+  fileName: 'modal_ipad.png',
+  finder: find.byType(Dialog),
+);
+```
+
+### Complex Workflow Example
+
+```dart
+testWidgets('E-commerce app screenshots', (tester) async {
+  await tester.pumpWidget(ECommerceApp());
+
+  // Product listing page
+  await AppDeployScreenshots.byDevices(
+    tester,
+    'product_listing',
+    devices: [Device.iphone16Pro, Device.androidPhone],
+  );
+
+  // Product detail page
+  await tester.tap(find.text('iPhone Case'));
+  await tester.pumpAndSettle();
+
+  await AppDeployScreenshots.byDevice(
+    tester,
+    'product_detail',
+    device: Device.iphone16ProMax,
+    fileName: 'product_detail_large.png',
+  );
+
+  // Shopping cart
+  await tester.tap(find.byIcon(Icons.add_shopping_cart));
+  await tester.pumpAndSettle();
+
+  await AppDeployScreenshots.byDevices(
+    tester,
+    'shopping_cart',
+    devices: [Device.iphone16Pro, Device.ipadProM4],
+    finder: find.byType(ShoppingCartWidget),
+  );
+
+  // Checkout flow - tablet optimized
+  await tester.tap(find.text('Checkout'));
+  await tester.pumpAndSettle();
+
+  await AppDeployScreenshots.byDevice(
+    tester,
+    'checkout_flow',
+    device: Device.ipadProM4,
+    fileName: 'checkout_tablet.png',
+    deviceSetup: (device, tester) async {
+      // Fill in some test data for better screenshots
+      await tester.enterText(find.byKey(Key('email')), 'user@example.com');
+      await tester.enterText(find.byKey(Key('address')), '123 Main St');
+    },
   );
 });
 ```
 
-**Screenshots are blank or contain boxes**
+## Initialization Options
+
+Customize the initialization behavior:
 
 ```dart
-// Ensure proper setup and waiting
-await ScreenshotTestSetup.prepareWidgetForScreenshot(tester);
-await tester.pumpAndSettle(const Duration(seconds: 2));
-```
-
-**Memory issues with large tests**
-
-```dart
-// Add timeout configuration in dart_test.yaml
-tags:
-  screenshots:
-    timeout: 5x
-```
-
-### Debug Mode
-
-Enable verbose logging to diagnose issues:
-
-```dart
-await loadAppFonts(verbose: true);
-await ScreenshotTestSetup.initialize(verbose: true);
-```
-
-## 📚 API Reference
-
-### Core Functions
-
-| Function                                     | Description                                 | Use Case                    |
-| -------------------------------------------- | ------------------------------------------- | --------------------------- |
-| `appDeployScreenshot()`                      | Generate screenshots for custom device list | Full control over devices   |
-| `captureByPlatformAndDevice()`               | Generate for all iOS and Android devices    | Cross-platform apps         |
-| `AppleStoreScreenshots.captureForAppStore()` | Apple App Store specific screenshots        | iOS app submission          |
-| `loadAppFonts()`                             | Load custom fonts for accurate rendering    | Apps with custom typography |
-
-### Theme Utilities
-
-| Function                              | Description               | Use Case                |
-| ------------------------------------- | ------------------------- | ----------------------- |
-| `ScreenshotThemes.iosAppStoreLight()` | iOS-optimized light theme | iPhone app screenshots  |
-| `ScreenshotThemes.iosAppStoreDark()`  | iOS-optimized dark theme  | Dark mode screenshots   |
-| `ScreenshotThemes.androidPlayStore()` | Android-optimized theme   | Play Store screenshots  |
-| `Widget.withScreenshotTheme()`        | Apply theme to any widget | Quick theme application |
-
-### Device Support
-
-| Device Category | Devices Included                  | Dimensions           |
-| --------------- | --------------------------------- | -------------------- |
-| iPhone Required | iPhone 14 Plus, iPhone 16 Pro Max | 1284×2778, 1290×2796 |
-| iPhone Optional | iPhone 13 Mini, iPhone 15 Pro     | Various              |
-| iPad            | iPad Pro 13"                      | 2064×2752            |
-| Android Phone   | Various aspect ratios             | 16:9, 18:9, 19:9     |
-| Android Tablet  | 7", 10" tablets                   | Multiple sizes       |
-
-## 🎯 Best Practices
-
-### 1. Consistent Mock Data
-
-```dart
-final mockData = ScreenshotTestSetup.createMockData();
-// Use the same mock data across all screenshots for consistency
-```
-
-### 2. Realistic Content
-
-```dart
-// Use realistic, localized content
-final messages = [
-  'Welcome to our amazing app! 🎉',
-  'Discover new features and improvements',
-  'Connect with friends and family easily',
-];
-```
-
-### 3. Brand Consistency
-
-```dart
-// Use your app's actual colors and fonts
-final theme = ScreenshotThemes.iosAppStoreLight(
-  primaryColor: MyAppColors.primary,
-  fontFamily: 'MyAppFont',
+await AppDeployScreenshots.initialize(
+  loadFonts: true,           // Load custom fonts (default: true)
+  verbose: true,             // Enable verbose logging (default: false)
+  mockPlatformChannels: true, // Mock platform channels (default: true)
 );
 ```
 
-### 4. Multiple Scenarios
+**Asset Loading Behavior:**
+
+- `byPlatform()` and `byDevices()` automatically call `primeAssets()` to load images
+- `byDevice()` uses the `waitForImages` parameter (default: `true`) to control asset loading
+- Manual `primeAssets()` calls are only needed for advanced use cases
+
+## Tips and Best Practices
+
+### 1. Use Meaningful Names
 
 ```dart
-// Capture different user scenarios
-await captureAppleStoreScreenshots('onboarding');
-await captureAppleStoreScreenshots('main_features');
-await captureAppleStoreScreenshots('premium_features');
+// Platform-wide screenshots
+await AppDeployScreenshots.byPlatform(tester, 'onboarding_welcome');
+await AppDeployScreenshots.byPlatform(tester, 'main_dashboard');
+
+// Device-specific hero shots
+await AppDeployScreenshots.byDevice(
+  tester, 'hero_shot',
+  device: Device.iphone16ProMax,
+  fileName: 'app_store_hero.png'
+);
+
+// Targeted device groups
+await AppDeployScreenshots.byDevices(
+  tester, 'settings_profile',
+  devices: [Device.iphone16Pro, Device.androidPhone]
+);
 ```
 
-## 🤝 Contributing
+### 2. Handle Network Images and Assets
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+```dart
+// byPlatform and byDevices automatically handle asset loading
+await AppDeployScreenshots.byPlatform(tester, 'screen_with_images');
 
-## 📄 License
+// For byDevice, control asset loading with waitForImages parameter
+await AppDeployScreenshots.byDevice(
+  tester,
+  'image_gallery',
+  device: Device.ipadProM4,
+  fileName: 'gallery_ipad.png',
+  waitForImages: true, // Default is true - set to false for faster tests
+);
 
-This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file for details.
+// Only call primeAssets manually if you need fine-grained control
+await AppDeployScreenshots.primeAssets(tester); // Rarely needed
+await AppDeployScreenshots.byDevice(
+  tester,
+  'pre_loaded_images',
+  device: Device.iphone16Pro,
+  fileName: 'custom.png',
+  waitForImages: false, // Skip automatic loading since we did it manually
+);
+```
 
-## 🙏 Acknowledgments
+### 3. Test Different States and User Flows
 
-- Built on top of Flutter's excellent testing framework
-- Inspired by the golden_toolkit package for font loading
-- Device configurations based on official Apple and Google guidelines
+```dart
+testWidgets('Screenshot user journey', (tester) async {
+  await tester.pumpWidget(MyApp());
 
----
+  // 1. Empty state - show across all devices
+  await AppDeployScreenshots.byPlatform(tester, 'empty_state');
 
-**Made with ❤️ for the Flutter community**
+  // 2. Loading state - capture specific moment
+  await triggerLoading(tester);
+  await AppDeployScreenshots.byDevices(
+    tester, 'loading_state',
+    devices: [Device.iphone16Pro, Device.androidPhone],
+    customPump: (tester) => tester.pump(Duration(milliseconds: 200)),
+  );
 
-_Need help? [Open an issue](https://github.com/your-repo/app_deploy_screenshots/issues) or check our [documentation](https://pub.dev/packages/app_deploy_screenshots)._
+  // 3. Success state - focus on key devices
+  await addTestData(tester);
+  await AppDeployScreenshots.byDevices(
+    tester, 'success_state',
+    devices: [Device.iphone16ProMax, Device.ipadProM4],
+  );
+
+  // 4. Error handling - single device example
+  await triggerError(tester);
+  await AppDeployScreenshots.byDevice(
+    tester, 'error_handling',
+    device: Device.iphone16Pro,
+    fileName: 'error_example.png',
+  );
+});
+```
+
+### 4. Optimize for Different Use Cases
+
+```dart
+// Quick testing - single device
+await AppDeployScreenshots.byDevice(
+  tester, 'quick_test',
+  device: Device.iphone16Pro,
+  fileName: 'test.png',
+);
+
+// App store submission - all required sizes
+await AppDeployScreenshots.byPlatform(tester, 'app_store_ready');
+
+// Feature documentation - specific devices
+await AppDeployScreenshots.byDevices(
+  tester, 'feature_demo',
+  devices: [Device.iphone16Pro, Device.ipadProM4, Device.androidTablet],
+  finder: find.byKey(Key('feature_widget')),
+);
+```
+
+### 5. Organize Screenshots
+
+Screenshots are automatically organized by platform and device size, making it easy to upload to app stores:
+
+- Use the `ios/` folder contents for App Store Connect
+- Use the `android/` folder contents for Google Play Console
+
+## Troubleshooting
+
+### Screenshots are black/empty
+
+- Ensure your widget tree is properly pumped with `await tester.pumpAndSettle()`
+- Check that your widgets are actually rendered (not offstage)
+
+### Custom fonts not appearing
+
+- Verify fonts are declared in `pubspec.yaml`
+- Ensure font files are in the correct location
+- Check that `loadFonts: true` is set in initialization
+
+### Tests timing out
+
+- Use `customPump` to control animation timing
+- Increase test timeout if needed
+- Consider using `waitForImages: false` for faster tests
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guide and submit pull requests to our repository.
+
+## License
+
+This project is licensed under the BSD 3-Clause License - see the LICENSE file for details.
