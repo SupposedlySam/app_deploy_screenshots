@@ -12,6 +12,12 @@ A Flutter package for automatically generating app store screenshots across mult
 - ⚡ **Byte-based Screenshot Capture**: Generates actual PNG files, not just golden file comparisons
 - 🔧 **Flexible Configuration**: Customize devices, finders, and screenshot capture behavior
 - 🤖 **Test Integration**: Works seamlessly with Flutter widget tests
+- 🏪 **Exact store sizes**: `Device.appStore` and `Device.playStore` presets, written as 24-bit PNGs with no alpha, as the stores require
+- 🖼️ **Marketing frames**: background, headline, rounded screen and bezel, at the exact store pixel size
+- 📶 **Clean status bar**: 9:41, full battery, full signal, coloured to match the app
+- 🔦 **Annotations**: spotlights, callouts and magnifier insets placed by `Finder`, so they follow the widget on every device
+- 🌗 **Variants**: light, dark and every locale in one call
+- 🗂️ **Review**: store-order prefixes, a contact sheet per device, and a `manifest.json`
 
 ## Installation
 
@@ -131,20 +137,149 @@ Screenshots will be generated in the `app_deploy_screenshots/` directory with th
 ```
 app_deploy_screenshots/
 ├── ios/
-│   ├── 6.9"_iphone16_pro_max/
+│   ├── 6.9_iphone16_pro_max/
 │   │   ├── home_screen.png
 │   │   └── settings_screen.png
-│   └── 13.0"_ipad_pro_m4/
+│   └── 13.0_ipad_pro_m4/
 │       ├── home_screen.png
 │       └── settings_screen.png
 └── android/
-    ├── 6.5"_android_phone_20_9/
+    ├── 6.5_android_phone_20_9/
     │   ├── home_screen.png
     │   └── settings_screen.png
-    └── 10.5"_android_tablet/
+    └── 10.5_android_tablet/
         ├── home_screen.png
         └── settings_screen.png
 ```
+
+## Store-ready screenshots
+
+`forStores` renders every size App Store Connect and Google Play ask for, and each option below turns plain captures into store artwork. All of them also work with `byDevices`, `byPlatform` and `byDevice`.
+
+```dart
+const headlines = {'en': 'All your chats, one inbox', 'fr': 'Tous vos chats'};
+
+testWidgets('store listing', (tester) async {
+  await tester.pumpWidget(const MyApp());
+
+  await AppDeployScreenshots.forStores(
+    tester,
+    'inbox',
+    order: 1, // stores list screenshots in upload order: 01_inbox.png
+    customPump: (t) => t.pump(const Duration(milliseconds: 100)),
+    variants: [ScreenshotVariant.light, ScreenshotVariant.dark],
+    statusBar: const StatusBarOverlay(),
+    annotations: [
+      Spotlight(find.byKey(const Key('compose'))),
+      Callout(find.byIcon(Icons.search), 'Find any chat instantly'),
+      MagnifierInset(find.byKey(const Key('first-message'))),
+    ],
+    frame: ScreenshotFrame.builder(
+      (context) => MarketingFrame(
+        background: FrameBackground.gradient(
+          LinearGradient(
+            colors: context.brightness == Brightness.dark
+                ? const [Color(0xFF1B1464), Colors.black]
+                : const [Color(0xFFE0E7FF), Colors.white],
+          ),
+        ),
+        caption: Caption(
+          headline: headlines[context.locale.languageCode]!,
+          subheadline: 'Fast, private and simple',
+          headlineStyle: const TextStyle(fontFamily: 'MyBrandFont'),
+        ),
+      ),
+    ),
+  );
+
+  await AppDeployScreenshots.writeReport(tester: tester);
+});
+```
+
+This writes:
+
+```
+app_deploy_screenshots/
+├── ios/app_store_iphone_6_9/01_inbox.light.png      1320 × 2868
+├── ios/app_store_ipad_13/01_inbox.light.png         2064 × 2752
+├── android/play_store_phone/01_inbox.light.png      1080 × 1920
+├── android/play_store_tablet_7/01_inbox.light.png   1224 × 2176
+├── android/play_store_tablet_10/01_inbox.light.png  1620 × 2880
+├── … the same again as .dark.png
+├── _review/ios__app_store_iphone_6_9.png            contact sheet per device
+└── manifest.json
+```
+
+### Store presets
+
+| Preset | Pixels | Notes |
+| --- | --- | --- |
+| `Device.appStoreIphone69` | 1320 × 2868 | Required for iPhone; scaled down for smaller iPhones |
+| `Device.appStoreIpad13` | 2064 × 2752 | Required for iPad; scaled down for smaller iPads |
+| `Device.playStorePhone` | 1080 × 1920 | 9:16 |
+| `Device.playStoreTablet7` | 1224 × 2176 | 9:16, 612 dp wide |
+| `Device.playStoreTablet10` | 1620 × 2880 | 9:16, 810 dp wide |
+
+`Device.appStore` and `Device.playStore` group them. Google Play rejects a screenshot whose long side is more than twice the short side, so a native 20:9 capture (1080 × 2400) is not accepted. To show a tall phone on Play, render a tall `Device` and set `MarketingFrame(canvasSize: Size(1080, 1920))`.
+
+Every screenshot is written as a 24-bit PNG with no alpha channel. Google Play asks for this, and App Store Connect asks for flattened images.
+
+### Status bar
+
+`StatusBarOverlay()` draws a clean iOS or Android status bar into the device's top safe area. Its icons are dark or light to match the `SystemUiOverlayStyle` the app publishes (for example from an `AppBar`), or set `iconBrightness`. The clock text is `time:`, `'9:41'` by default.
+
+### Marketing frames
+
+`MarketingFrame` renders the app at the device's real logical size, then composites the finished image onto a canvas at the exact store pixel size:
+
+- `background`: `FrameBackground.solid`, `.gradient`, `.image(bytes)` or `.custom(painter)`
+- `caption`: a `Caption` with a headline and optional subheadline. Sizes are in device points; pass your app's font in `headlineStyle`.
+- `layout`: `FrameLayout.captionTop`, `.captionBottom` or `.tilted`
+- `bezel`: a plain rounded-rectangle `DeviceBezel` (no manufacturer artwork to license), or `null`
+- `canvasSize`: the output size, by default the device's pixel size
+
+Use `ScreenshotFrame.builder((context) => ...)` to vary the frame by `context.locale`, `context.brightness`, `context.device` or `context.order`, and return `null` to leave one screenshot unframed.
+
+### Annotations
+
+Annotations find their target with a `Finder` after the device's overrides and pumps, so they follow the widget at every screen size. A finder that matches nothing throws; it never silently leaves the annotation out.
+
+- `Spotlight(finder)` dims everything except the target.
+- `Callout(finder, 'text')` draws a speech bubble with an arrow pointing at the target.
+- `MagnifierInset(finder, zoom: 1.4)` enlarges the target into an inset. Inside a frame, the inset can extend past the device's edges.
+
+### Variants
+
+```dart
+variants: ScreenshotVariant.matrix(
+  brightnesses: [Brightness.light, Brightness.dark],
+  locales: [Locale('en'), Locale('fr')],
+),
+```
+
+Each variant adds a suffix: `01_home.dark.fr.png`. Brightness and locale are applied through the platform (`platformBrightness`, `locales`), as on a device, so apps that use `ThemeMode.system` and the system locale need nothing else. An app that keeps these in its own state can read them in `deviceSetup` from `tester.platformDispatcher`.
+
+When the brightness changes between captures, the package steps through 600 ms of frames so chained theme animations finish. A screen that never settles still works.
+
+### Review: contact sheets and manifest
+
+`AppDeployScreenshots.writeReport()` writes `manifest.json` (every screenshot with its device, size, order, locale and brightness) and one contact sheet per device folder into `_review/`, where upload tools that take every PNG in a device folder will not pick them up. Call it at the end of a test, passing `tester:`, or in `tearDownAll`.
+
+### Emoji
+
+The test renderer cannot draw colour emoji, and it does not fall back between fonts on its own, so emoji render as empty boxes. `initialize()` loads a bundled monochrome Noto Emoji font (SIL Open Font License 1.1). To use it, name it as a fallback in your theme:
+
+```dart
+ThemeData(
+  fontFamilyFallback: const [AppDeployScreenshots.emojiFontFamily],
+)
+```
+
+This is safe in a production theme: on a device the family does not exist and the system emoji font is used. The font is read from the package at test time and is not declared as a Flutter font, so it adds nothing to your app's release build.
+
+### Real shadows
+
+`flutter_test` normally draws every elevation shadow as a solid black outline (`debugDisableShadows`), which is right for goldens but wrong for store artwork. Captures draw real shadows, and the test's setting is restored afterwards.
 
 ## API Reference
 
@@ -406,7 +541,7 @@ await AppDeployScreenshots.initialize(
 
 **Asset Loading Behavior:**
 
-- `byPlatform()` and `byDevices()` automatically call `primeAssets()` to load images
+- Every capture waits for images per device, after its pumps, then paints one more frame. A widget laid out again at a new device size requests a new image, so waiting once up front is not enough.
 - `byDevice()` uses the `waitForImages` parameter (default: `true`) to control asset loading
 - Manual `primeAssets()` calls are only needed for advanced use cases
 
@@ -436,7 +571,7 @@ await AppDeployScreenshots.byDevices(
 ### 2. Handle Network Images and Assets
 
 ```dart
-// byPlatform and byDevices automatically handle asset loading
+// Every capture waits for images on each device
 await AppDeployScreenshots.byPlatform(tester, 'screen_with_images');
 
 // For byDevice, control asset loading with waitForImages parameter
@@ -528,6 +663,15 @@ Screenshots are automatically organized by platform and device size, making it e
 - Ensure your widget tree is properly pumped with `await tester.pumpAndSettle()`
 - Check that your widgets are actually rendered (not offstage)
 
+### Emoji show as boxes
+
+- Add `fontFamilyFallback: const [AppDeployScreenshots.emojiFontFamily]` to your theme (see [Emoji](#emoji))
+- If `initialize()` prints `emoji font not loaded`, the reason follows on the same line
+
+### Safe areas
+
+`Device.safeArea` is in logical points, the same values the app reads from `MediaQuery.paddingOf`. Before 1.1.0 the insets were applied at a fraction of their real size.
+
 ### Custom fonts not appearing
 
 - Verify fonts are declared in `pubspec.yaml`
@@ -536,6 +680,7 @@ Screenshots are automatically organized by platform and device size, making it e
 
 ### Tests timing out
 
+- The default pump is `pumpAndSettle`, which never returns on a screen with a running animation (a spinner, a pulse). Pass `customPump: (t) => t.pump(const Duration(milliseconds: 100))`.
 - Use `customPump` to control animation timing
 - Increase test timeout if needed
 - Consider using `waitForImages: false` for faster tests

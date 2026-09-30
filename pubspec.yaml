@@ -1,6 +1,7 @@
 name: app_deploy_screenshots
 description: 'Generates App Deployment Screenshots'
-version: 1.0.1
+version: 1.1.0
+repository: https://github.com/SupposedlySam/app_deploy_screenshots
 
 environment:
   sdk: ^3.9.2
