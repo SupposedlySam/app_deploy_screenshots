@@ -101,7 +101,7 @@ class Device {
     displaySize: DisplaySize.sixNine,
     platform: DevicePlatform.ios,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 59 / 3, bottom: 34 / 3),
+    safeArea: EdgeInsets.only(top: 62, bottom: 34),
   );
 
   /// iPhone Devices (6.5")
@@ -111,7 +111,7 @@ class Device {
     displaySize: DisplaySize.sixFive,
     platform: DevicePlatform.ios,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 47 / 3, bottom: 34 / 3),
+    safeArea: EdgeInsets.only(top: 47, bottom: 34),
   );
 
   /// iPhone Devices (6.3")
@@ -121,7 +121,7 @@ class Device {
     displaySize: DisplaySize.sixThree,
     platform: DevicePlatform.ios,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 59 / 3, bottom: 34 / 3),
+    safeArea: EdgeInsets.only(top: 62, bottom: 34),
   );
 
   /// iPhone Devices (6.1")
@@ -131,7 +131,7 @@ class Device {
     displaySize: DisplaySize.sixOne,
     platform: DevicePlatform.ios,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 47 / 3, bottom: 34 / 3),
+    safeArea: EdgeInsets.only(top: 47, bottom: 34),
   );
 
   /// iPhone Devices (5.5")
@@ -141,7 +141,7 @@ class Device {
     displaySize: DisplaySize.fiveFive,
     platform: DevicePlatform.ios,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 20 / 3, bottom: 0),
+    safeArea: EdgeInsets.only(top: 20),
   );
 
   /// iPhone Devices (4.7")
@@ -151,7 +151,7 @@ class Device {
     displaySize: DisplaySize.fourSeven,
     platform: DevicePlatform.ios,
     devicePixelRatio: 2.0,
-    safeArea: EdgeInsets.only(top: 20 / 2, bottom: 0),
+    safeArea: EdgeInsets.only(top: 20),
   );
 
   /// iPad Devices (13")
@@ -161,7 +161,7 @@ class Device {
     displaySize: DisplaySize.thirteen,
     platform: DevicePlatform.ios,
     devicePixelRatio: 2.0,
-    safeArea: EdgeInsets.all(20 / 2),
+    safeArea: EdgeInsets.only(top: 24, bottom: 20),
   );
 
   /// iPad Devices (12.9")
@@ -171,7 +171,7 @@ class Device {
     displaySize: DisplaySize.twelveNine,
     platform: DevicePlatform.ios,
     devicePixelRatio: 2.0,
-    safeArea: EdgeInsets.all(20 / 2),
+    safeArea: EdgeInsets.only(top: 24, bottom: 20),
   );
 
   /// iPad Devices (11")
@@ -181,7 +181,7 @@ class Device {
     displaySize: DisplaySize.eleven,
     platform: DevicePlatform.ios,
     devicePixelRatio: 2.0,
-    safeArea: EdgeInsets.all(20 / 2),
+    safeArea: EdgeInsets.only(top: 24, bottom: 20),
   );
 
   /// Mac (16:10 aspect ratio)
@@ -215,7 +215,7 @@ class Device {
     displaySize: DisplaySize.sixOne,
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 24 / 3, bottom: 0),
+    safeArea: EdgeInsets.only(top: 24),
   );
 
   /// Android Phone Screenshots - 9:16 aspect ratio
@@ -225,7 +225,7 @@ class Device {
     displaySize: DisplaySize.sixOne,
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 24 / 3, bottom: 0),
+    safeArea: EdgeInsets.only(top: 24),
   );
 
   /// Android Phone Screenshots - 18:9 aspect ratio
@@ -235,7 +235,7 @@ class Device {
     displaySize: DisplaySize.sixThree,
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 24 / 3, bottom: 0),
+    safeArea: EdgeInsets.only(top: 24),
   );
 
   /// Android Phone Screenshots - 20:9 aspect ratio
@@ -245,7 +245,7 @@ class Device {
     displaySize: DisplaySize.sixFive,
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
-    safeArea: EdgeInsets.only(top: 24 / 3, bottom: 0),
+    safeArea: EdgeInsets.only(top: 24),
   );
 
   /// Android Tablet Screenshots - 16:10 aspect ratio
@@ -255,7 +255,7 @@ class Device {
     displaySize: DisplaySize.tenFive,
     platform: DevicePlatform.android,
     devicePixelRatio: 2.0,
-    safeArea: EdgeInsets.all(24 / 2),
+    safeArea: EdgeInsets.only(top: 24),
   );
 
   /// Android TV Screenshots - 16:9 aspect ratio
@@ -311,7 +311,8 @@ class Device {
   /// [brightness] specify platform brightness
   final Brightness brightness;
 
-  /// [safeArea] specify insets to define a safe area
+  /// [safeArea] the system insets (status bar, home indicator) in logical
+  /// points, as the app reads them from `MediaQuery.paddingOf`.
   final EdgeInsets safeArea;
 
   /// [displaySize] specify display size

@@ -122,27 +122,23 @@ class AppDeployScreenshots {
     FileNameBuilder? fileNameBuilder,
   }) async {
     assert(devices == null || devices.isNotEmpty);
-    final deviceSetupPump = deviceSetup ?? _twoPumps;
     final defaultDevices = [Device.iphone16Pro, Device.ipadProM4];
-    await primeAssets(tester);
 
+    // Images are primed per device inside [byDevice], after its pumps. Priming
+    // once up front is not enough: a widget laid out again at a new device
+    // size (a list tile, a `ResizeImage` keyed by width) requests a new image
+    // that nobody waits for, and the capture shows an empty placeholder.
     for (final device in devices ?? defaultDevices) {
-      await tester.binding.runWithDeviceOverrides(
-        device,
-        body: () async {
-          await deviceSetupPump(device, tester);
-          await byDevice(
-            tester,
-            name,
-            customPump: customPump,
-            finder: finder,
-            device: device,
-            fileName:
-                fileNameBuilder?.call(device) ??
-                'app_deploy_screenshots/${device.name}.$name.png',
-            waitForImages: false,
-          );
-        },
+      await byDevice(
+        tester,
+        name,
+        customPump: customPump,
+        deviceSetup: deviceSetup,
+        finder: finder,
+        device: device,
+        fileName:
+            fileNameBuilder?.call(device) ??
+            'app_deploy_screenshots/${device.name}.$name.png',
       );
     }
   }
@@ -156,44 +152,60 @@ class AppDeployScreenshots {
     required Device device,
     required String fileName,
     Finder? finder,
+    DeviceSetup? deviceSetup,
     CustomPump? customPump,
     bool waitForImages = true,
+    bool applyDeviceOverrides = true,
   }) async {
     assert(
       !name.endsWith('.png'),
       'Screenshot names should not include file type',
     );
 
-    final pumpAfterPrime = customPump ?? _onlyPumpAndSettle;
+    Future<void> body() async {
+      final deviceSetupPump = deviceSetup ?? _twoPumps;
 
-    await pumpAfterPrime(tester);
+      await deviceSetupPump(device, tester);
 
-    if (waitForImages) await primeAssets(tester);
+      final pumpAfterPrime = customPump ?? _onlyPumpAndSettle;
 
-    // Capture the image using WidgetTester's standard approach
-    final actualFinder = finder ?? find.byWidgetPredicate((w) => true).first;
+      await pumpAfterPrime(tester);
 
-    // Capture the image
-    final imageFuture = captureImage(actualFinder.evaluate().first);
-
-    // Save the image to a file
-    final file = File(fileName);
-    await tester.runAsync(() async {
-      final ui.Image image = await imageFuture;
-      try {
-        final ByteData? bytes = await image.toByteData(
-          format: ui.ImageByteFormat.png,
-        );
-        if (bytes == null) {
-          return 'could not encode screenshot.';
-        } else {
-          await file.create(recursive: true);
-          await file.writeAsBytes(bytes.buffer.asUint8List());
-        }
-      } catch (e) {
-        debugPrint(e.toString());
+      if (waitForImages) {
+        await primeAssets(tester);
+        // Decoding completes outside the frame; one more frame paints it.
+        await tester.pump();
       }
-    });
+
+      // Capture the image using WidgetTester's standard approach
+      final actualFinder = finder ?? find.byWidgetPredicate((w) => true).first;
+
+      // Capture the image
+      final imageFuture = captureImage(actualFinder.evaluate().first);
+
+      // Save the image to a file
+      final file = File(fileName);
+      await tester.runAsync(() async {
+        final ui.Image image = await imageFuture;
+        try {
+          final ByteData? bytes = await image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
+          if (bytes == null) {
+            return 'could not encode screenshot.';
+          } else {
+            await file.create(recursive: true);
+            await file.writeAsBytes(bytes.buffer.asUint8List());
+          }
+        } catch (e) {
+          debugPrint(e.toString());
+        }
+      });
+    }
+
+    await (applyDeviceOverrides
+        ? tester.binding.runWithDeviceOverrides(device, body: body)
+        : body());
   }
 
   /// Render the closest [RepaintBoundary] of the [element] into an image.

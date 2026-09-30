@@ -37,11 +37,16 @@ extension WidgetFlutterBindingExtensions on TestWidgetsFlutterBinding {
     platformDispatcher.implicitView!.devicePixelRatio = device.devicePixelRatio;
     platformDispatcher.textScaleFactorTestValue = device.textScale;
     platformDispatcher.platformBrightnessTestValue = device.brightness;
+    // `FakeViewPadding` is in physical pixels; `Device.safeArea` is in
+    // logical points, like `MediaQuery.padding`. Before 1.1.0 the constants
+    // were written pre-divided (`59 / 3`) and applied as physical pixels, so
+    // apps saw a 6.6pt notch on a 59pt device.
+    final safeArea = device.safeArea * device.devicePixelRatio;
     platformDispatcher.implicitView!.padding = FakeViewPadding(
-      bottom: device.safeArea.bottom,
-      left: device.safeArea.left,
-      right: device.safeArea.right,
-      top: device.safeArea.top,
+      bottom: safeArea.bottom,
+      left: safeArea.left,
+      right: safeArea.right,
+      top: safeArea.top,
     );
   }
 
