@@ -58,7 +58,81 @@ class Device {
     this.textScale = 1.0,
     this.brightness = Brightness.light,
     this.safeArea = const EdgeInsets.all(0),
+    this.screenCornerRadius = 0,
   });
+
+  /// iPhone 6.9" App Store size: 1320 × 2868 px (iPhone 16 Pro Max).
+  ///
+  /// The size App Store Connect requires for iPhone apps; it scales these
+  /// screenshots down for every smaller iPhone.
+  static const Device appStoreIphone69 = Device(
+    name: 'app_store_iphone_6_9',
+    size: Size(440, 956),
+    displaySize: DisplaySize.sixNine,
+    platform: DevicePlatform.ios,
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 62, bottom: 34),
+    screenCornerRadius: 55,
+  );
+
+  /// iPad 13" App Store size: 2064 × 2752 px (iPad Pro M4).
+  ///
+  /// Required when the app runs on iPad; scaled down for smaller iPads.
+  static const Device appStoreIpad13 = Device(
+    name: 'app_store_ipad_13',
+    size: Size(1032, 1376),
+    displaySize: DisplaySize.thirteen,
+    platform: DevicePlatform.ios,
+    devicePixelRatio: 2.0,
+    safeArea: EdgeInsets.only(top: 24, bottom: 20),
+    screenCornerRadius: 18,
+  );
+
+  /// Google Play phone size: 1080 × 1920 px (9:16).
+  ///
+  /// Play rejects screenshots whose long side is more than twice the short
+  /// side, which rules out native 20:9 phone resolutions such as 1080 × 2400.
+  /// 9:16 at 1080 px or more also qualifies for promotional placement. To
+  /// show a taller phone, render a taller [Device] and place it on a
+  /// 1080 × 1920 canvas with a `MarketingFrame`.
+  static const Device playStorePhone = Device(
+    name: 'play_store_phone',
+    size: Size(432, 768),
+    displaySize: DisplaySize.sixOne,
+    platform: DevicePlatform.android,
+    devicePixelRatio: 2.5,
+    safeArea: EdgeInsets.only(top: 24),
+  );
+
+  /// Google Play 7" tablet size: 1224 × 2176 px (9:16), 612 dp wide.
+  static const Device playStoreTablet7 = Device(
+    name: 'play_store_tablet_7',
+    size: Size(612, 1088),
+    displaySize: DisplaySize.sixNine,
+    platform: DevicePlatform.android,
+    devicePixelRatio: 2.0,
+    safeArea: EdgeInsets.only(top: 24),
+  );
+
+  /// Google Play 10" tablet size: 1620 × 2880 px (9:16), 810 dp wide.
+  static const Device playStoreTablet10 = Device(
+    name: 'play_store_tablet_10',
+    size: Size(810, 1440),
+    displaySize: DisplaySize.tenFive,
+    platform: DevicePlatform.android,
+    devicePixelRatio: 2.0,
+    safeArea: EdgeInsets.only(top: 24),
+  );
+
+  /// The sizes App Store Connect requires: iPhone 6.9" and iPad 13".
+  static const List<Device> appStore = [appStoreIphone69, appStoreIpad13];
+
+  /// Google Play phone, 7" tablet and 10" tablet sizes, all 9:16.
+  static const List<Device> playStore = [
+    playStorePhone,
+    playStoreTablet7,
+    playStoreTablet10,
+  ];
 
   /// [phone] one of the smallest phone screens
   static const Device phone = Device(
@@ -321,6 +395,13 @@ class Device {
   /// [platform] specify platform
   final DevicePlatform platform;
 
+  /// Corner radius of the physical screen in logical points, used when a
+  /// `MarketingFrame` draws the screen. 0 means square corners.
+  final double screenCornerRadius;
+
+  /// The size of a full-screen capture, in pixels.
+  Size get pixelSize => size * devicePixelRatio;
+
   /// Filter devices by display size
   static List<Device> byDisplaySize(DisplaySize size) {
     return [
@@ -349,6 +430,7 @@ class Device {
     EdgeInsets? safeArea,
     DisplaySize? displaySize,
     DevicePlatform? platform,
+    double? screenCornerRadius,
   }) {
     return Device(
       size: size ?? this.size,
@@ -359,22 +441,12 @@ class Device {
       safeArea: safeArea ?? this.safeArea,
       displaySize: displaySize ?? this.displaySize,
       platform: platform ?? this.platform,
+      screenCornerRadius: screenCornerRadius ?? this.screenCornerRadius,
     );
   }
 
   /// [dark] convenience method to copy the current device and apply dark theme
-  Device dark() {
-    return Device(
-      size: size,
-      devicePixelRatio: devicePixelRatio,
-      textScale: textScale,
-      brightness: Brightness.dark,
-      safeArea: safeArea,
-      displaySize: displaySize,
-      platform: platform,
-      name: '${name}_dark',
-    );
-  }
+  Device dark() => copyWith(brightness: Brightness.dark, name: '${name}_dark');
 
   /// Helper method to get screenshot configurations
   static List<Device> androidScreenshots({DeviceType type = DeviceType.phone}) {
@@ -394,18 +466,15 @@ class Device {
     }
   }
 
-  /// Helper method to check if device meets minimum resolution requirements
+  /// Whether a full-screen capture on this device is a valid Google Play
+  /// screenshot: each side 320–3840 px, and the long side at most twice the
+  /// short side.
+  ///
+  /// Before 1.1.0 this checked the logical size and ignored the aspect rule.
   bool meetsPlayStoreRequirements() {
-    // Minimum requirements from Play Store
-    const minWidth = 320;
-    const minHeight = 320;
-    const maxWidth = 3840;
-    const maxHeight = 3840;
-
-    return size.width >= minWidth &&
-        size.height >= minHeight &&
-        size.width <= maxWidth &&
-        size.height <= maxHeight;
+    final shortSide = pixelSize.shortestSide;
+    final longSide = pixelSize.longestSide;
+    return shortSide >= 320 && longSide <= 3840 && longSide <= shortSide * 2;
   }
 
   @override
