@@ -10,9 +10,35 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_deploy_screenshots/device.dart';
 import 'package:app_deploy_screenshots/extensions.dart';
+import 'package:app_deploy_screenshots/src/annotations.dart';
+import 'package:app_deploy_screenshots/src/marketing_frame.dart';
+import 'package:app_deploy_screenshots/src/png_encoder.dart';
+import 'package:app_deploy_screenshots/src/report.dart';
+import 'package:app_deploy_screenshots/src/status_bar.dart';
+import 'package:app_deploy_screenshots/src/variant.dart';
 
 export 'device.dart';
 export 'extensions.dart';
+export 'src/annotations.dart'
+    show
+        ScreenshotAnnotation,
+        Spotlight,
+        Callout,
+        CalloutPlacement,
+        MagnifierInset,
+        MagnifierShape;
+export 'src/marketing_frame.dart'
+    show
+        ScreenshotFrame,
+        MarketingFrame,
+        FrameLayout,
+        FrameBackground,
+        Caption,
+        DeviceBezel;
+export 'src/png_encoder.dart' show encodeOpaquePng;
+export 'src/report.dart' show ScreenshotRecord;
+export 'src/status_bar.dart' show StatusBarOverlay;
+export 'src/variant.dart' show ScreenshotVariant, ScreenshotContext;
 
 ///CustomPump is a function that lets you do custom pumping before golden evaluation.
 ///Sometimes, you want to do a golden test for different stages of animations, so its crucial to have a precise control over pumps and durations
@@ -64,27 +90,28 @@ class AppDeployScreenshots {
     _verbosePrint('✅ Screenshot test environment ready!', verbose);
   }
 
-  /// Creates all ios and android screnshots based on app store guidelines
+  /// Captures [name] on every iOS and Android device in [Device.allDevices],
+  /// into `app_deploy_screenshots/<platform>/<size>_<device>/`.
   ///
-  /// iPhone: Adding accurate screenshots of your app on the newest devices can help you represent the app's user experience. Keep in mind that we'll use these screenshots for all display sizes and localizations. Screenshots are only required for iOS apps, and only the first 3 will be used on the app installation sheets.
-  ///   6.9": Drag up to 3 app previews and 10 screenshots here for iPhone 6.7" or 6.9" Displays. (1320 × 2868px, 2868 × 1320px, 1290 × 2796px or 2796 × 1290px)
-  ///   6.5": Drag up to 3 app previews and 10 screenshots here. (1242 × 2688px, 2688 × 1242px, 1284 × 2778px or 2778 × 1284px)
-  ///   iPad-13: Drag up to 3 app previews and 10 screenshots here for iPad 12.9" or 13" Displays. (2064 × 2752px, 2752 × 2064px, 2048 × 2732px or 2732 × 2048px)
-  /// android:
-  ///   phone: Upload 2-8 phone screenshots. Screenshots must be PNG or JPEG, up to 8 MB each, 16:9 or 9:16 aspect ratio, with each side between 320 px and 3,840 px
-  ///   tablet-7: Upload up to eight 7-inch tablet screenshots. Screenshots must be PNG or JPEG, up to 8 MB each, 16:9 or 9:16 aspect ratio, with each side between 320 px and 3,840 px
-  ///   tablet-10: Upload up to eight 10-inch tablet screenshots. Screenshots must be PNG or JPEG, up to 8 MB each, 16:9 or 9:16 aspect ratio, with each side between 1,080 px and 7,680 px
-  ///   chromebook: Upload 4-8 screenshots. Screenshots must be PNG or JPEG, up to 8 MB each, 16:9 or 9:16 aspect ratio, with each side between 1,080 px and 7,680 px
+  /// For upload-ready store sizes only, use [forStores]. For store rules,
+  /// see:
+  /// * https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications/
+  /// * https://support.google.com/googleplay/android-developer/answer/9866151
   ///
-  /// See also: [byDevice], [byDevices]
-  static Future<void> byPlatform(
+  /// See [byDevices] for the other parameters.
+  static Future<List<ScreenshotRecord>> byPlatform(
     WidgetTester tester,
     String name, {
     Finder? finder,
     CustomPump? customPump,
     DeviceSetup? deviceSetup,
     FileNameBuilder? fileNameBuilder,
-  }) async {
+    List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
+    int? order,
+    StatusBarOverlay? statusBar,
+    List<ScreenshotAnnotation> annotations = const [],
+    ScreenshotFrame? frame,
+  }) {
     final platformDevices = [
       DevicePlatform.ios,
       DevicePlatform.android,
@@ -97,22 +124,81 @@ class AppDeployScreenshots {
       customPump: customPump,
       deviceSetup: deviceSetup,
       devices: platformDevices,
-      fileNameBuilder: (device) =>
-          'app_deploy_screenshots/${device.platform.name}/${device.displaySize.label}_${device.name}/$name.png',
+      fileNameBuilder:
+          fileNameBuilder ??
+          (device) =>
+              'app_deploy_screenshots/${device.platform.name}/${device.displaySize.label}_${device.name}/$name.png',
+      variants: variants,
+      order: order,
+      statusBar: statusBar,
+      annotations: annotations,
+      frame: frame,
     );
   }
 
-  /// Generates screenshots for a list of devices
+  /// Captures [name] at the exact pixel sizes App Store Connect and Google
+  /// Play ask for ([Device.appStore] and [Device.playStore]), into
+  /// `<root>/<platform>/<device>/`, one folder per upload slot.
   ///
-  /// [name] is the name of the screenshot
-  /// [finder] is an optional finder to use for the screenshot
-  /// [customPump] is an optional pump to use for the screenshot
-  /// [deviceSetup] is an optional function to use for the screenshot
-  /// [devices] is a list of devices to use for the screenshot
-  /// [fileNameBuilder] is an optional function to use for the screenshot
+  /// See [byDevices] for the other parameters.
+  static Future<List<ScreenshotRecord>> forStores(
+    WidgetTester tester,
+    String name, {
+    List<Device> devices = const [...Device.appStore, ...Device.playStore],
+    String root = defaultRoot,
+    Finder? finder,
+    CustomPump? customPump,
+    DeviceSetup? deviceSetup,
+    List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
+    int? order,
+    StatusBarOverlay? statusBar,
+    List<ScreenshotAnnotation> annotations = const [],
+    ScreenshotFrame? frame,
+  }) {
+    return byDevices(
+      tester,
+      name,
+      devices: devices,
+      finder: finder,
+      customPump: customPump,
+      deviceSetup: deviceSetup,
+      fileNameBuilder: (device) =>
+          '$root/${device.platform.name}/${device.name}/$name.png',
+      variants: variants,
+      order: order,
+      statusBar: statusBar,
+      annotations: annotations,
+      frame: frame,
+    );
+  }
+
+  /// The directory screenshots are written to unless a path says otherwise.
+  static const String defaultRoot = 'app_deploy_screenshots';
+
+  /// Captures [name] on each of [devices] (default: iPhone 16 Pro and iPad
+  /// Pro M4), once per variant.
   ///
-  /// see also: [byPlatform], [byDevice]
-  static Future<void> byDevices(
+  /// * [finder] captures one widget instead of the whole screen.
+  /// * [customPump] replaces the default `pumpAndSettle`. Use a fixed pump
+  ///   for screens that never settle (spinners, pulses).
+  /// * [deviceSetup] runs first for every device, under its overrides.
+  /// * [fileNameBuilder] chooses the path. By default it is
+  ///   `app_deploy_screenshots/<device>.<name>.png`. The [order] prefix and
+  ///   variant suffix are added to the file name either way, so
+  ///   `home.png` becomes `01_home.dark.png`.
+  /// * [variants] renders each device once per [ScreenshotVariant], e.g.
+  ///   `[ScreenshotVariant.light, ScreenshotVariant.dark]` or
+  ///   `ScreenshotVariant.matrix(...)`.
+  /// * [order] is the screenshot's position in the store listing, from 1.
+  ///   The stores list screenshots in upload order.
+  /// * [statusBar] draws a clean status bar into the top safe area.
+  /// * [annotations] draws spotlights, callouts and magnifiers.
+  /// * [frame] composites the screenshot into store artwork.
+  ///
+  /// Returns a record of every image written.
+  ///
+  /// See also: [byPlatform], [forStores], [byDevice]
+  static Future<List<ScreenshotRecord>> byDevices(
     WidgetTester tester,
     String name, {
     Finder? finder,
@@ -120,33 +206,81 @@ class AppDeployScreenshots {
     DeviceSetup? deviceSetup,
     List<Device>? devices,
     FileNameBuilder? fileNameBuilder,
+    List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
+    int? order,
+    StatusBarOverlay? statusBar,
+    List<ScreenshotAnnotation> annotations = const [],
+    ScreenshotFrame? frame,
   }) async {
     assert(devices == null || devices.isNotEmpty);
+    assert(variants.isNotEmpty);
+    assert(order == null || order > 0, 'order starts at 1');
     final defaultDevices = [Device.iphone16Pro, Device.ipadProM4];
+    final records = <ScreenshotRecord>[];
 
     // Images are primed per device inside [byDevice], after its pumps. Priming
     // once up front is not enough: a widget laid out again at a new device
     // size (a list tile, a `ResizeImage` keyed by width) requests a new image
     // that nobody waits for, and the capture shows an empty placeholder.
     for (final device in devices ?? defaultDevices) {
-      await byDevice(
-        tester,
-        name,
-        customPump: customPump,
-        deviceSetup: deviceSetup,
-        finder: finder,
-        device: device,
-        fileName:
-            fileNameBuilder?.call(device) ??
-            'app_deploy_screenshots/${device.name}.$name.png',
-      );
+      for (final variant in variants) {
+        final context = ScreenshotContext(
+          name: name,
+          device: variant.applyTo(device),
+          variant: variant,
+          order: order,
+        );
+        final path = fileNameBuilder == null
+            ? '$defaultRoot/${device.name}.${context.fileStem}.png'
+            : _withStem(fileNameBuilder(context.device), context);
+        records.add(
+          await byDevice(
+            tester,
+            name,
+            customPump: customPump,
+            deviceSetup: deviceSetup,
+            finder: finder,
+            device: device,
+            fileName: path,
+            variant: variant,
+            order: order,
+            statusBar: statusBar,
+            annotations: annotations,
+            frame: frame,
+          ),
+        );
+      }
     }
+    return records;
   }
 
-  /// Captures a screenshot of the widget and saves it to a file
+  /// Replaces the file name in [path] with the context's stem, keeping the
+  /// directory: `a/b/home.png` becomes `a/b/01_home.dark.png`.
+  static String _withStem(String path, ScreenshotContext context) {
+    if (context.order == null && context.variant.suffix.isEmpty) return path;
+    final slash = path.lastIndexOf('/');
+    final dir = path.substring(0, slash + 1);
+    var base = path.substring(slash + 1);
+    if (base.endsWith('.png')) base = base.substring(0, base.length - 4);
+    final prefix = context.order == null
+        ? ''
+        : '${context.order.toString().padLeft(2, '0')}_';
+    final suffix = context.variant.suffix.isEmpty
+        ? ''
+        : '.${context.variant.suffix}';
+    return '$dir$prefix$base$suffix.png';
+  }
+
+  /// Captures one screenshot of [device] to [fileName].
+  ///
+  /// Output is a 24-bit PNG with no alpha channel, as Google Play and App
+  /// Store Connect ask for. See [byDevices] for the parameters.
+  ///
+  /// [fileName] is used exactly as given; [order] and [variant] only
+  /// describe the screenshot to builders and the manifest.
   ///
   /// See also: [byPlatform], [byDevices]
-  static Future<void> byDevice(
+  static Future<ScreenshotRecord> byDevice(
     WidgetTester tester,
     String name, {
     required Device device,
@@ -156,75 +290,267 @@ class AppDeployScreenshots {
     CustomPump? customPump,
     bool waitForImages = true,
     bool applyDeviceOverrides = true,
+    ScreenshotVariant variant = ScreenshotVariant.none,
+    int? order,
+    StatusBarOverlay? statusBar,
+    List<ScreenshotAnnotation> annotations = const [],
+    ScreenshotFrame? frame,
   }) async {
     assert(
       !name.endsWith('.png'),
       'Screenshot names should not include file type',
     );
 
+    final context = ScreenshotContext(
+      name: name,
+      device: variant.applyTo(device),
+      variant: variant,
+      order: order,
+    );
+    late ScreenshotRecord record;
+
     Future<void> body() async {
-      final deviceSetupPump = deviceSetup ?? _twoPumps;
-
-      await deviceSetupPump(device, tester);
-
-      final pumpAfterPrime = customPump ?? _onlyPumpAndSettle;
-
-      await pumpAfterPrime(tester);
-
-      if (waitForImages) {
-        await primeAssets(tester);
-        // Decoding completes outside the frame; one more frame paints it.
-        await tester.pump();
-      }
-
-      // Capture the image using WidgetTester's standard approach
-      final actualFinder = finder ?? find.byWidgetPredicate((w) => true).first;
-
-      // Capture the image
-      final imageFuture = captureImage(actualFinder.evaluate().first);
-
-      // Save the image to a file
-      final file = File(fileName);
-      await tester.runAsync(() async {
-        final ui.Image image = await imageFuture;
-        try {
-          final ByteData? bytes = await image.toByteData(
-            format: ui.ImageByteFormat.png,
-          );
-          if (bytes == null) {
-            return 'could not encode screenshot.';
-          } else {
-            await file.create(recursive: true);
-            await file.writeAsBytes(bytes.buffer.asUint8List());
+      final locale = variant.locale;
+      if (locale != null) tester.platformDispatcher.localesTestValue = [locale];
+      // flutter_test replaces every elevation shadow with a solid black
+      // outline (`debugDisableShadows`), which suits goldens but puts a black
+      // ring around every card and FAB in store artwork. Draw real shadows
+      // while capturing, and put the test's setting back afterwards.
+      final shadowsWereDisabled = debugDisableShadows;
+      debugDisableShadows = false;
+      _markTreeNeedsPaint(tester);
+      try {
+        // A brightness change animates the theme, and the animations chain:
+        // `AnimatedTheme` runs 200 ms, and only when it lands does
+        // `Material`'s `AnimatedDefaultTextStyle` start its own 200 ms
+        // towards the new text colour. With a fixed customPump a capture
+        // lands mid-way (washed-out colours, text in the previous theme's
+        // colour). One long pump is not enough: it finishes the first
+        // animation in a single frame and the second only starts there. So
+        // step through in frames. pumpAndSettle is no answer either, since
+        // many apps never settle.
+        if (_lastBrightness != context.device.brightness) {
+          for (var t = Duration.zero; t < _themeTransition; t += _frame) {
+            await tester.pump(_frame);
           }
-        } catch (e) {
-          debugPrint(e.toString());
+          _lastBrightness = context.device.brightness;
         }
-      });
+
+        final deviceSetupPump = deviceSetup ?? _twoPumps;
+
+        await deviceSetupPump(context.device, tester);
+
+        final pumpAfterPrime = customPump ?? _onlyPumpAndSettle;
+
+        await pumpAfterPrime(tester);
+
+        if (waitForImages) {
+          await primeAssets(tester);
+          // Decoding completes outside the frame; one more frame paints it.
+          await tester.pump();
+        }
+
+        record = await _capture(
+          tester,
+          context,
+          fileName: fileName,
+          finder: finder,
+          statusBar: statusBar,
+          annotations: annotations,
+          frame: frame?.resolve(context),
+        );
+      } finally {
+        debugDisableShadows = shadowsWereDisabled;
+        _markTreeNeedsPaint(tester);
+        if (locale != null) tester.platformDispatcher.clearLocalesTestValue();
+      }
     }
 
     await (applyDeviceOverrides
-        ? tester.binding.runWithDeviceOverrides(device, body: body)
+        ? tester.binding.runWithDeviceOverrides(context.device, body: body)
         : body());
+    screenshotLog.add(record);
+    return record;
+  }
+
+  static Future<ScreenshotRecord> _capture(
+    WidgetTester tester,
+    ScreenshotContext context, {
+    required String fileName,
+    required Finder? finder,
+    required StatusBarOverlay? statusBar,
+    required List<ScreenshotAnnotation> annotations,
+    required MarketingFrame? frame,
+  }) async {
+    final device = context.device;
+    // Resolve everything that reads the widget tree now, before leaving the
+    // fake-async zone.
+    final resolved = resolveAnnotations(tester, annotations);
+    final element = (finder ?? find.byWidgetPredicate((w) => true))
+        .evaluate()
+        .first;
+    final boundary = _repaintBoundaryOf(element);
+    final renderView = tester.binding.renderViews.first;
+    final view = tester.view;
+    final viewSize = view.physicalSize / view.devicePixelRatio;
+
+    // The part of the view the capture covers, in logical points.
+    final Rect captured;
+    final Future<ui.Image> imageFuture;
+    if (boundary is RenderView) {
+      captured = Offset.zero & viewSize;
+      imageFuture = captureImage(element);
+    } else {
+      final box = boundary as RenderBox;
+      captured = MatrixUtils.transformRect(
+        box.getTransformTo(null),
+        Offset.zero & box.size,
+      );
+      imageFuture = captureImage(element, pixelRatio: view.devicePixelRatio);
+    }
+
+    final icons =
+        statusBar?.iconBrightness ??
+        statusBarIconsFor(
+          renderView.debugLayer?.find<SystemUiOverlayStyle>(
+            Offset(
+              view.physicalSize.width / 2,
+              device.safeArea.top * view.devicePixelRatio / 2,
+            ),
+          ),
+          device,
+        );
+
+    return (await tester.runAsync(() async {
+      final raw = await imageFuture;
+      final perLogical = raw.width / captured.width;
+
+      // Status bar and on-screen annotations, drawn in view coordinates.
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder)..drawImage(raw, Offset.zero, Paint());
+      canvas
+        ..save()
+        ..scale(perLogical)
+        ..translate(-captured.left, -captured.top);
+      statusBar?.paint(canvas, device, icons: icons);
+      paintScreenAnnotations(canvas, viewSize, resolved);
+      canvas.restore();
+      final hasMagnifiers = resolved.any((r) => r.annotation is MagnifierInset);
+
+      void magnify(
+        Canvas c,
+        Size out,
+        Offset Function(Offset) toOutput,
+        double outPerLogical,
+      ) => paintMagnifiers(
+        c,
+        resolved: resolved,
+        source: raw,
+        sourceRect: captured,
+        sourcePerLogical: perLogical,
+        toOutput: toOutput,
+        outputPerLogical: outPerLogical,
+        output: out,
+      );
+
+      if (frame == null && hasMagnifiers) {
+        magnify(
+          canvas,
+          Size(raw.width.toDouble(), raw.height.toDouble()),
+          (p) => (p - captured.topLeft) * perLogical,
+          perLogical,
+        );
+      }
+      final picture = recorder.endRecording();
+      final screen = await picture.toImage(raw.width, raw.height);
+      picture.dispose();
+
+      var output = screen;
+      if (frame != null) {
+        final framed = await composeFrame(
+          frame: frame,
+          screen: screen,
+          pointWidth: device.size.width,
+          screenLogicalWidth: captured.width,
+          defaultCornerRadius: device.screenCornerRadius > 0
+              ? device.screenCornerRadius
+              : 16,
+          afterScreen: hasMagnifiers
+              ? (c, size, map, scale) => magnify(
+                  c,
+                  size,
+                  (p) => map((p - captured.topLeft) * perLogical),
+                  perLogical * scale,
+                )
+              : null,
+        );
+        output = framed.image;
+        screen.dispose();
+      }
+
+      final bytes = await encodeOpaquePng(output);
+      final file = File(fileName);
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes);
+      final record = ScreenshotRecord(
+        path: fileName,
+        context: context,
+        width: output.width,
+        height: output.height,
+        framed: frame != null,
+      );
+      output.dispose();
+      raw.dispose();
+      return record;
+    }))!;
+  }
+
+  /// Writes review material for everything under [root]: `manifest.json`
+  /// and one contact sheet per device folder in `_review/`.
+  ///
+  /// Call it once screenshots are written, e.g. at the end of a test or in
+  /// `tearDownAll`. Pass [tester] when calling inside a `testWidgets` body,
+  /// so image work runs outside its fake-async zone.
+  static Future<void> writeReport({
+    String root = defaultRoot,
+    WidgetTester? tester,
+    bool manifest = true,
+    bool contactSheets = true,
+    int columns = 5,
+  }) async {
+    Future<void> write() async {
+      if (manifest) await writeManifest(root);
+      if (contactSheets) await writeContactSheets(root, columns: columns);
+    }
+
+    await (tester == null ? write() : tester.runAsync(write));
+  }
+
+  static RenderObject _repaintBoundaryOf(Element element) {
+    RenderObject? renderObject = element.renderObject;
+    while (renderObject != null && !renderObject.isRepaintBoundary) {
+      renderObject = renderObject.parent;
+    }
+    if (renderObject == null) {
+      throw StateError('No RepaintBoundary found in ancestor chain');
+    }
+    return renderObject;
   }
 
   /// Render the closest [RepaintBoundary] of the [element] into an image.
   ///
+  /// [pixelRatio] is image pixels per logical pixel for a boundary below the
+  /// root view. The root view's layer is already in physical pixels.
+  ///
   /// See also:
   ///  * [OffsetLayer.toImage] which is the actual method being called.
-  static Future<ui.Image> captureImage(Element element) {
+  static Future<ui.Image> captureImage(
+    Element element, {
+    double pixelRatio = 1,
+  }) {
     assert(element.renderObject != null);
 
-    RenderObject? renderObject = element.renderObject!;
-
-    // Find RepaintBoundary with safety check
-    while (renderObject != null && !renderObject.isRepaintBoundary) {
-      renderObject = renderObject.parent;
-    }
-
-    if (renderObject == null) {
-      throw StateError('No RepaintBoundary found in ancestor chain');
-    }
+    final renderObject = _repaintBoundaryOf(element);
 
     assert(!renderObject.debugNeedsPaint);
 
@@ -233,7 +559,10 @@ class AppDeployScreenshots {
       throw StateError('Expected OffsetLayer but got ${layer.runtimeType}');
     }
 
-    return layer.toImage(renderObject.paintBounds);
+    return layer.toImage(
+      renderObject.paintBounds,
+      pixelRatio: renderObject is RenderView ? 1 : pixelRatio,
+    );
   }
 
   ///By default, flutter test only uses a single "test" font called Ahem.
@@ -412,6 +741,24 @@ class AppDeployScreenshots {
 
   static Future<void> _onlyPumpAndSettle(WidgetTester tester) =>
       tester.pumpAndSettle();
+
+  /// Room for three chained `kThemeAnimationDuration` (200 ms) animations.
+  static const Duration _themeTransition = Duration(milliseconds: 600);
+  static const Duration _frame = Duration(milliseconds: 50);
+
+  /// The brightness of the last capture, to detect a theme transition.
+  static Brightness? _lastBrightness;
+
+  static void _markTreeNeedsPaint(WidgetTester tester) {
+    void visit(RenderObject o) {
+      o.markNeedsPaint();
+      o.visitChildren(visit);
+    }
+
+    for (final view in tester.binding.renderViews) {
+      visit(view);
+    }
+  }
 
   static Future<void> _twoPumps(Device device, WidgetTester tester) async {
     await tester.pump();
