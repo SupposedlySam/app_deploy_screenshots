@@ -11,7 +11,7 @@
 - feat: annotations placed by `Finder`: `Spotlight`, `Callout` and `MagnifierInset`
 - feat: `ScreenshotVariant` renders light, dark and locales in one call, with suffixed file names
 - feat: `order` adds a store-order prefix (`01_home.png`)
-- feat: `AppDeployScreenshots.writeReport` writes `manifest.json` and one contact sheet per device
+- feat: `AppDeployScreenshots.writeReport` writes `manifest.json` and one contact sheet per device, and warns about Google Play screenshots whose caption covers more than 20% of the image
 - feat: a bundled monochrome emoji font, `AppDeployScreenshots.emojiFontFamily`, loaded by `initialize()` and never bundled into apps
 - feat: `byDevice`, `byDevices` and `byPlatform` return `ScreenshotRecord`s
 - fix: captures draw real elevation shadows instead of flutter_test's solid black outlines

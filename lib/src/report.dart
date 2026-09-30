@@ -18,6 +18,7 @@ class ScreenshotRecord {
     required this.width,
     required this.height,
     required this.framed,
+    this.captionCoverage,
   });
 
   final String path;
@@ -27,6 +28,10 @@ class ScreenshotRecord {
 
   /// Whether a `MarketingFrame` was applied.
   final bool framed;
+
+  /// Share of the image covered by caption text (0–1), or null without a
+  /// frame. Google Play's guidance is to keep text overlays to 20% or less.
+  final double? captionCoverage;
 
   Map<String, Object?> toJson(String root) {
     final device = context.device;
@@ -45,6 +50,7 @@ class ScreenshotRecord {
       'locale': context.variant.locale?.toLanguageTag(),
       'variant': context.variant.suffix,
       'framed': framed,
+      'captionCoverage': captionCoverage,
     };
   }
 }
@@ -90,6 +96,21 @@ Future<File> writeManifest(String root) async {
   final tmp = File('${file.path}.tmp');
   await tmp.writeAsString('$json\n');
   return tmp.rename(file.path);
+}
+
+/// Screenshots in `<root>/manifest.json` for Google Play whose caption text
+/// covers more than [limit] of the image, as `(path, coverage)` pairs.
+List<(String, double)> captionCoverageOver(String root, double limit) {
+  final file = File('$root/manifest.json');
+  if (!file.existsSync()) return const [];
+  final json = jsonDecode(file.readAsStringSync()) as Map;
+  return [
+    for (final e in (json['screenshots'] as List).cast<Map>())
+      if (e['platform'] == 'android' &&
+          e['captionCoverage'] is num &&
+          (e['captionCoverage'] as num) > limit)
+        (e['path'] as String, (e['captionCoverage'] as num).toDouble()),
+  ];
 }
 
 /// Writes one contact sheet per directory of screenshots under [root], into

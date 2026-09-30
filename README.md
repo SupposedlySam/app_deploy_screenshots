@@ -233,7 +233,7 @@ Every screenshot is written as a 24-bit PNG with no alpha channel. Google Play a
 `MarketingFrame` renders the app at the device's real logical size, then composites the finished image onto a canvas at the exact store pixel size:
 
 - `background`: `FrameBackground.solid`, `.gradient`, `.image(bytes)` or `.custom(painter)`
-- `caption`: a `Caption` with a headline and optional subheadline. Sizes are in device points; pass your app's font in `headlineStyle`.
+- `caption`: a `Caption` with a headline and optional subheadline; pass your app's font in `headlineStyle`. Font sizes, margins and gaps are in points of `referenceSize` (a 440 × 956 canvas by default), scaled by canvas area, so a caption covers the same share of the image on a phone and on a 13" iPad.
 - `layout`: `FrameLayout.captionTop`, `.captionBottom` or `.tilted`
 - `bezel`: a plain rounded-rectangle `DeviceBezel` (no manufacturer artwork to license), or `null`
 - `canvasSize`: the output size, by default the device's pixel size
@@ -264,6 +264,8 @@ When the brightness changes between captures, the package steps through 600 ms o
 ### Review: contact sheets and manifest
 
 `AppDeployScreenshots.writeReport()` writes `manifest.json` (every screenshot with its device, size, order, locale and brightness) and one contact sheet per device folder into `_review/`, where upload tools that take every PNG in a device folder will not pick them up. Call it at the end of a test, passing `tester:`, or in `tearDownAll`.
+
+It also checks Google Play's guidance that text overlays cover no more than 20% of a screenshot. Each framed screenshot records `captionCoverage`, the area of its caption's text lines over the image area, in the manifest. `writeReport` prints and returns every Play screenshot above `playCaptionCoverageLimit` (default `0.2`, or `null` to skip). It only warns and never fails.
 
 ### Emoji
 

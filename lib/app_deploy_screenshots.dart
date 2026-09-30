@@ -148,17 +148,15 @@ class AppDeployScreenshots {
     for (Directory? dir = Directory.current; dir != null;) {
       final config = File('${dir.path}/.dart_tool/package_config.json');
       if (config.existsSync()) {
-        final json = jsonDecode(config.readAsStringSync()) as Map;
-        for (final p in (json['packages'] as List).cast<Map>()) {
-          if (p['name'] != 'app_deploy_screenshots') continue;
-          final root = config.uri.resolve(p['rootUri'] as String);
-          final lib = root.resolve(
-            (p['packageUri'] as String?)?.replaceAll(RegExp(r'/?$'), '/') ??
-                'lib/',
-          );
-          return Directory.fromUri(lib);
+        final lib = packageLibFromConfig(
+          config.uri,
+          jsonDecode(config.readAsStringSync()),
+          'app_deploy_screenshots',
+        );
+        if (lib == null) {
+          throw StateError('app_deploy_screenshots is not in ${config.path}');
         }
-        throw StateError('app_deploy_screenshots is not in ${config.path}');
+        return Directory.fromUri(lib);
       }
       final parent = dir.parent;
       dir = parent.path == dir.path ? null : parent;
@@ -166,6 +164,32 @@ class AppDeployScreenshots {
     throw StateError(
       'No .dart_tool/package_config.json above ${Directory.current.path}',
     );
+  }
+
+  /// The `lib/` directory of [package] in a parsed `package_config.json`
+  /// found at [configUri], or null if it is not listed.
+  ///
+  /// `rootUri` is written with a trailing slash for the package itself
+  /// (`../`) and without one for path dependencies
+  /// (`../../../app_deploy_screenshots`). Resolving against the second as-is
+  /// replaces its last segment instead of descending into it, so both URIs
+  /// are normalised to directories first.
+  @visibleForTesting
+  static Uri? packageLibFromConfig(
+    Uri configUri,
+    Object? json,
+    String package,
+  ) {
+    if (json is! Map || json['packages'] is! List) {
+      throw FormatException('Unrecognised package_config.json', '$configUri');
+    }
+    for (final p in (json['packages'] as List).cast<Map>()) {
+      if (p['name'] != package) continue;
+      String dir(String path) => path.endsWith('/') ? path : '$path/';
+      final root = configUri.resolve(dir(p['rootUri'] as String));
+      return root.resolve(dir((p['packageUri'] as String?) ?? 'lib/'));
+    }
+    return null;
   }
 
   /// Captures [name] on every iOS and Android device in [Device.allDevices],
@@ -544,6 +568,7 @@ class AppDeployScreenshots {
       picture.dispose();
 
       var output = screen;
+      double? captionCoverage;
       if (frame != null) {
         final framed = await composeFrame(
           frame: frame,
@@ -563,6 +588,7 @@ class AppDeployScreenshots {
               : null,
         );
         output = framed.image;
+        captionCoverage = framed.captionCoverage;
         screen.dispose();
       }
 
@@ -576,6 +602,7 @@ class AppDeployScreenshots {
         width: output.width,
         height: output.height,
         framed: frame != null,
+        captionCoverage: captionCoverage,
       );
       output.dispose();
       raw.dispose();
@@ -586,15 +613,22 @@ class AppDeployScreenshots {
   /// Writes review material for everything under [root]: `manifest.json`
   /// and one contact sheet per device folder in `_review/`.
   ///
+  /// Also checks Google Play's guidance that text overlays cover no more than
+  /// 20% of a screenshot. Every Play screenshot whose caption covers more
+  /// than [playCaptionCoverageLimit] is printed and returned. It only warns,
+  /// because the guidance is advice rather than an upload check; set the
+  /// limit to null to skip it.
+  ///
   /// Call it once screenshots are written, e.g. at the end of a test or in
   /// `tearDownAll`. Pass [tester] when calling inside a `testWidgets` body,
   /// so image work runs outside its fake-async zone.
-  static Future<void> writeReport({
+  static Future<List<(String path, double coverage)>> writeReport({
     String root = defaultRoot,
     WidgetTester? tester,
     bool manifest = true,
     bool contactSheets = true,
     int columns = 5,
+    double? playCaptionCoverageLimit = 0.2,
   }) async {
     Future<void> write() async {
       if (manifest) await writeManifest(root);
@@ -602,6 +636,18 @@ class AppDeployScreenshots {
     }
 
     await (tester == null ? write() : tester.runAsync(write));
+
+    final limit = playCaptionCoverageLimit;
+    if (limit == null || !manifest) return const [];
+    final over = captionCoverageOver(root, limit);
+    for (final (path, coverage) in over) {
+      debugPrint(
+        '⚠️ app_deploy_screenshots: $path caption covers '
+        '${(coverage * 100).toStringAsFixed(1)}% of the image '
+        '(Google Play guidance: ${(limit * 100).round()}% or less)',
+      );
+    }
+    return over;
   }
 
   static RenderObject _repaintBoundaryOf(Element element) {

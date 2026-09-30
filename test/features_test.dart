@@ -383,6 +383,29 @@ void main() {
       );
     });
 
+    testWidgets('captions cover the same share of phone and tablet canvases', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const _Blocks());
+      const frame = MarketingFrame(
+        caption: Caption(headline: 'One inbox', subheadline: 'Fast'),
+      );
+      final records = await AppDeployScreenshots.byDevices(
+        tester,
+        'share',
+        devices: const [Device.appStoreIphone69, Device.appStoreIpad13],
+        fileNameBuilder: (d) => '$root/share/${d.name}.png',
+        customPump: fixedPump,
+        frame: frame,
+      );
+      final phone = records[0].captionCoverage!,
+          pad = records[1].captionCoverage!;
+      expect(phone, greaterThan(0.005));
+      // Set in device points, the iPad caption covered about 40% of the
+      // phone's share.
+      expect(pad / phone, inInclusiveRange(0.85, 1.15));
+    });
+
     testWidgets('canvasSize puts one device on another store canvas', (
       tester,
     ) async {
@@ -563,7 +586,95 @@ void main() {
     expect((inkAt(0, 80) - inkAt(80, 80)).abs(), greaterThan(0.01));
   });
 
+  group('packageLibFromConfig', () {
+    final config = Uri.file('/work/app/.dart_tool/package_config.json');
+    Uri? lib(String rootUri, [String? packageUri = 'lib/']) =>
+        AppDeployScreenshots.packageLibFromConfig(config, {
+          'packages': [
+            {'name': 'other', 'rootUri': '../../other/'},
+            {
+              'name': 'app_deploy_screenshots',
+              'rootUri': rootUri,
+              'packageUri': ?packageUri,
+            },
+          ],
+        }, 'app_deploy_screenshots');
+
+    test('resolves a path dependency written without a trailing slash', () {
+      expect(
+        lib('../../../app_deploy_screenshots')?.toFilePath(),
+        '/app_deploy_screenshots/lib/',
+      );
+    });
+
+    test('resolves the package itself, the pub cache, and no packageUri', () {
+      expect(lib('../')?.toFilePath(), '/work/app/lib/');
+      expect(
+        lib('file:///cache/app_deploy_screenshots-1.1.0')?.toFilePath(),
+        '/cache/app_deploy_screenshots-1.1.0/lib/',
+      );
+      expect(lib('../', null)?.toFilePath(), '/work/app/lib/');
+      expect(lib('../', 'lib')?.toFilePath(), '/work/app/lib/');
+    });
+
+    test('answers null when absent and throws on a malformed file', () {
+      expect(
+        AppDeployScreenshots.packageLibFromConfig(config, {
+          'packages': [],
+        }, 'x'),
+        isNull,
+      );
+      expect(
+        () => AppDeployScreenshots.packageLibFromConfig(config, [], 'x'),
+        throwsFormatException,
+      );
+    });
+  });
+
   group('writeReport', () {
+    testWidgets('warns about Play captions over the coverage limit only', (
+      tester,
+    ) async {
+      const reportRoot = '$root/coverage';
+      await tester.pumpWidget(const _Blocks());
+      MarketingFrame frame(double size) => MarketingFrame(
+        caption: Caption(
+          headline: 'A very large headline over many lines',
+          headlineStyle: TextStyle(fontSize: size),
+        ),
+      );
+      for (final (name, size) in [('big', 80.0), ('small', 24.0)]) {
+        await AppDeployScreenshots.forStores(
+          tester,
+          name,
+          root: reportRoot,
+          devices: const [Device.playStorePhone, Device.appStoreIphone69],
+          customPump: fixedPump,
+          frame: frame(size),
+        );
+      }
+
+      final over = await AppDeployScreenshots.writeReport(
+        root: reportRoot,
+        tester: tester,
+        contactSheets: false,
+      );
+
+      expect(over.map((e) => e.$1), ['android/play_store_phone/big.png']);
+      expect(over.single.$2, greaterThan(0.2));
+      final manifest =
+          jsonDecode(File('$reportRoot/manifest.json').readAsStringSync())
+              as Map;
+      final coverage = {
+        for (final e in (manifest['screenshots'] as List).cast<Map>())
+          e['path']: e['captionCoverage'],
+      };
+      // Control: the iOS copy of the same caption is just as big, and is
+      // recorded but not flagged.
+      expect(coverage['ios/app_store_iphone_6_9/big.png'], greaterThan(0.2));
+      expect(coverage['android/play_store_phone/small.png'], lessThan(0.2));
+    });
+
     testWidgets('writes a manifest and one contact sheet per folder', (
       tester,
     ) async {

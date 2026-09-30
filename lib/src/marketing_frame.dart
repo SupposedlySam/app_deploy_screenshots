@@ -126,8 +126,9 @@ Brightness _brightnessOf(Color c) =>
 
 /// A headline and an optional subheadline.
 ///
-/// Font sizes are in the device's logical points, so a 30pt headline looks
-/// the same relative to the screen on every store size.
+/// Font sizes are in points of `MarketingFrame.referenceSize`, scaled by the
+/// canvas area, so a caption covers the same share of every store image, from
+/// a 1080 × 1920 phone to a 2064 × 2752 iPad.
 @immutable
 class Caption {
   const Caption({
@@ -183,7 +184,17 @@ class MarketingFrame implements ScreenshotFrame {
     this.screenCornerRadius,
     this.tilt = -8,
     this.shadow = true,
+    this.referenceSize = const Size(440, 956),
   });
+
+  /// The canvas that caption sizes, margins and gaps are designed for, in
+  /// points. The default is a 6.9" iPhone.
+  ///
+  /// On a canvas of a different size every one of them is scaled by
+  /// `sqrt(canvas area / reference area)`, so text covers the same share of
+  /// the image. Store listings show screenshots at similar sizes whatever the
+  /// device, so a caption set in device points would shrink on tablets.
+  final Size referenceSize;
 
   final FrameBackground background;
   final Caption? caption;
@@ -217,17 +228,26 @@ typedef ImageToCanvas = Offset Function(Offset imagePoint);
 
 /// The result of compositing: the canvas and how the screenshot was placed.
 class FramedScreenshot {
-  FramedScreenshot(this.image, this.imageToCanvas, this.canvasPerImagePixel);
+  FramedScreenshot(
+    this.image,
+    this.imageToCanvas,
+    this.canvasPerImagePixel,
+    this.captionCoverage,
+  );
 
   final ui.Image image;
   final ImageToCanvas imageToCanvas;
   final double canvasPerImagePixel;
+
+  /// Share of the canvas covered by caption text: the area of the text's
+  /// line boxes over the canvas area, 0–1.
+  final double captionCoverage;
 }
 
 /// Composites [screen] onto [frame]'s canvas.
 ///
-/// [pointWidth] is the device's width in logical points; it sets the size
-/// of a caption point on the canvas. [screenLogicalWidth] is the width of the
+/// [pointWidth] is the device's width in logical points; it sets the bezel
+/// thickness, which belongs to the device. [screenLogicalWidth] is the width of the
 /// captured area in logical points. [afterScreen] paints over the finished
 /// canvas, given the screen placement (used for magnifiers).
 Future<FramedScreenshot> composeFrame({
@@ -247,7 +267,14 @@ Future<FramedScreenshot> composeFrame({
   final canvasSize =
       frame.canvasSize ??
       Size(screen.width.toDouble(), screen.height.toDouble());
-  final pt = canvasSize.width / pointWidth; // canvas px per caption point
+  // Canvas px per layout point: captions, margins and gaps.
+  final pt = math.sqrt(
+    canvasSize.width *
+        canvasSize.height /
+        (frame.referenceSize.width * frame.referenceSize.height),
+  );
+  // Canvas px per device point: the bezel, which belongs to the device.
+  final devicePt = canvasSize.width / pointWidth;
   final screenPerPt = screen.width / screenLogicalWidth; // image px per point
 
   final recorder = ui.PictureRecorder();
@@ -266,7 +293,7 @@ Future<FramedScreenshot> composeFrame({
             8 * pt * (captionPainters.length - 1);
   final captionGap = captionPainters.isEmpty ? 0.0 : 28 * pt;
 
-  final bezel = (frame.bezel?.width ?? 0) * pt;
+  final bezel = (frame.bezel?.width ?? 0) * devicePt;
   final screenAspect = screen.height / screen.width;
 
   // Where the screen (inside the bezel) goes, before any rotation.
@@ -368,7 +395,23 @@ Future<FramedScreenshot> composeFrame({
     canvasSize.height.round(),
   );
   picture.dispose();
-  return FramedScreenshot(image, map, scale);
+  // Line boxes, not the caption's layout box: a short headline centred in a
+  // wide box covers only what it inks.
+  final textArea = captionPainters.fold<double>(
+    0,
+    (sum, p) =>
+        sum +
+        p.computeLineMetrics().fold<double>(
+          0,
+          (a, l) => a + l.width * l.height,
+        ),
+  );
+  return FramedScreenshot(
+    image,
+    map,
+    scale,
+    textArea / (canvasSize.width * canvasSize.height),
+  );
 }
 
 List<TextPainter> _captionPainters(
