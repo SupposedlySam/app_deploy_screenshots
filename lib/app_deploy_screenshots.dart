@@ -68,10 +68,12 @@ class AppDeployScreenshots {
   /// [loadFonts] - Whether to load custom fonts (recommended: true)
   /// [verbose] - Whether to print detailed setup information
   /// [mockPlatformChannels] - Whether to mock common platform channels
+  /// [loadEmojiFont] - Whether to load [emojiFontFamily] (see [loadEmojiFont])
   static Future<void> initialize({
     bool loadFonts = true,
     bool verbose = false,
     bool mockPlatformChannels = true,
+    bool loadEmojiFont = true,
   }) async {
     TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -82,12 +84,88 @@ class AppDeployScreenshots {
       await loadAppFonts(verbose: verbose, skipOnError: true);
     }
 
+    if (loadEmojiFont) {
+      try {
+        await AppDeployScreenshots.loadEmojiFont();
+        _verbosePrint('  ✅ Loaded emoji font $emojiFontFamily', verbose);
+      } catch (e) {
+        // Printed even when not verbose: emoji would silently render as
+        // boxes, and nothing else would say why.
+        debugPrint('⚠️ app_deploy_screenshots: emoji font not loaded: $e');
+      }
+    }
+
     // Mock common platform channels that might interfere with tests
     if (mockPlatformChannels) {
       _setupCommonChannelMocks(verbose: verbose);
     }
 
     _verbosePrint('✅ Screenshot test environment ready!', verbose);
+  }
+
+  /// Font family of the bundled monochrome emoji font (Noto Emoji, SIL Open
+  /// Font License 1.1).
+  ///
+  /// The test renderer cannot draw colour emoji, and it does not fall back
+  /// between fonts on its own, so emoji render as empty boxes. Name this
+  /// family as a fallback in the app's theme to draw them as clean outlines:
+  ///
+  /// ```dart
+  /// ThemeData(
+  ///   textTheme: ...,
+  ///   fontFamilyFallback: const [AppDeployScreenshots.emojiFontFamily],
+  /// )
+  /// ```
+  ///
+  /// This is safe to leave in a production theme. On a device the family
+  /// does not exist, so it is skipped and the system emoji font is used.
+  static const String emojiFontFamily = 'AppDeployScreenshotsEmoji';
+
+  /// Loads [emojiFontFamily]. [initialize] calls this by default.
+  ///
+  /// The font ships inside the package's `lib/` and is read from disk, not
+  /// declared under `flutter: fonts:`. A font declared there would be
+  /// bundled into every app that depends on this package, and at 2 MB that
+  /// is too much to add to a release build for a test-only feature.
+  static Future<void> loadEmojiFont() async {
+    final lib = _packageLibDirectory();
+    final bytes = await File(
+      '${lib.path}/src/fonts/NotoEmoji.ttf',
+    ).readAsBytes();
+    final loader = FontLoader(emojiFontFamily)
+      ..addFont(Future.value(ByteData.sublistView(bytes)));
+    await loader.load();
+  }
+
+  /// This package's `lib/` directory, found through the nearest
+  /// `.dart_tool/package_config.json` above the working directory.
+  ///
+  /// `Isolate.resolvePackageUri` would be the obvious call, but
+  /// `flutter_tester` throws `Unsupported operation` for it. `flutter test`
+  /// runs from the package root, and pub workspaces keep the config at the
+  /// workspace root, so walking up covers both.
+  static Directory _packageLibDirectory() {
+    for (Directory? dir = Directory.current; dir != null;) {
+      final config = File('${dir.path}/.dart_tool/package_config.json');
+      if (config.existsSync()) {
+        final json = jsonDecode(config.readAsStringSync()) as Map;
+        for (final p in (json['packages'] as List).cast<Map>()) {
+          if (p['name'] != 'app_deploy_screenshots') continue;
+          final root = config.uri.resolve(p['rootUri'] as String);
+          final lib = root.resolve(
+            (p['packageUri'] as String?)?.replaceAll(RegExp(r'/?$'), '/') ??
+                'lib/',
+          );
+          return Directory.fromUri(lib);
+        }
+        throw StateError('app_deploy_screenshots is not in ${config.path}');
+      }
+      final parent = dir.parent;
+      dir = parent.path == dir.path ? null : parent;
+    }
+    throw StateError(
+      'No .dart_tool/package_config.json above ${Directory.current.path}',
+    );
   }
 
   /// Captures [name] on every iOS and Android device in [Device.allDevices],

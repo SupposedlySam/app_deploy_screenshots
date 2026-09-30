@@ -520,6 +520,49 @@ void main() {
     expect(debugDisableShadows, isTrue, reason: 'restored');
   });
 
+  testWidgets('emoji render through the bundled fallback font', (tester) async {
+    Widget emoji(String e, List<String>? fallback) => SizedBox(
+      width: 80,
+      height: 80,
+      child: Text(
+        e,
+        style: TextStyle(
+          fontFamily: 'Roboto',
+          fontSize: 60,
+          color: const Color(0xFF000000),
+          fontFamilyFallback: fallback,
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: ColoredBox(
+          color: const Color(0xFFFFFFFF),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final fallback in [
+                null,
+                const [AppDeployScreenshots.emojiFontFamily],
+              ])
+                Row(children: [emoji('😀', fallback), emoji('👍', fallback)]),
+            ],
+          ),
+        ),
+      ),
+    );
+    final png = await shoot(tester, 'emoji', device: Device.phone);
+    bool ink(Color c) => c.r < 0.5;
+    double inkAt(double x, double y) =>
+        png.fraction(Rect.fromLTWH(x, y, 80, 80), ink, step: 1);
+
+    // Without the fallback both are the same empty box; with it they differ.
+    expect(inkAt(0, 0), closeTo(inkAt(80, 0), 0.001), reason: 'control');
+    expect(inkAt(0, 80), greaterThan(0.05));
+    expect((inkAt(0, 80) - inkAt(80, 80)).abs(), greaterThan(0.01));
+  });
+
   group('writeReport', () {
     testWidgets('writes a manifest and one contact sheet per folder', (
       tester,
