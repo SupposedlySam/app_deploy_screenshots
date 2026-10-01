@@ -28,14 +28,17 @@ export 'src/annotations.dart'
         MagnifierInset,
         MagnifierShape;
 export 'src/capture/screen_capturer.dart' show CustomPump, DeviceSetup;
-export 'src/frame/marketing_frame.dart'
+export 'src/frame/device_style.dart'
     show
-        ScreenshotFrame,
-        MarketingFrame,
-        FrameLayout,
-        FrameBackground,
-        Caption,
-        DeviceBezel;
+        DeviceStyle,
+        DeviceBezel,
+        DeviceOutline,
+        DeviceGlow,
+        ScreenCutout,
+        ScreenCrop;
+export 'src/frame/frame_layout.dart' show FrameLayout;
+export 'src/frame/marketing_frame.dart'
+    show ScreenshotFrame, MarketingFrame, FrameBackground, Caption;
 export 'src/output/png_encoder.dart' show encodeOpaquePng;
 export 'src/output/report.dart' show ScreenshotRecord, ScreenshotSource;
 export 'src/setup/fonts.dart' show TestAssetBundle;

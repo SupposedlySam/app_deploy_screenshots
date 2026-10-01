@@ -4,6 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 import '../variant.dart';
+import 'device_style.dart';
+import 'frame_layout.dart';
+
+export 'device_style.dart' show DeviceBezel;
+export 'frame_layout.dart' show FrameLayout;
 
 /// Chooses the frame for each screenshot, so a frame can vary by device,
 /// locale and brightness.
@@ -35,19 +40,6 @@ class _BuilderFrame implements ScreenshotFrame {
 
   @override
   MarketingFrame? resolve(ScreenshotContext context) => _builder(context);
-}
-
-/// Where the caption and the device sit on the canvas.
-enum FrameLayout {
-  /// Caption above, device below it.
-  captionTop,
-
-  /// Device above, caption below it.
-  captionBottom,
-
-  /// Caption above, device larger and rotated by `MarketingFrame.tilt`,
-  /// running off the bottom of the canvas.
-  tilted,
 }
 
 /// The canvas behind the device.
@@ -186,36 +178,55 @@ class Caption {
   final TextDirection textDirection;
 }
 
-/// Plain rounded-rectangle device outline. No manufacturer artwork, so there
-/// is nothing to license.
-@immutable
-class DeviceBezel {
-  const DeviceBezel({this.color = const Color(0xFF111111), this.width = 10});
-
-  final Color color;
-
-  /// Thickness in logical points.
-  final double width;
-}
-
 /// Store-listing artwork: the screenshot scaled down onto a background, with
 /// a caption, rounded corners and an optional bezel, at an exact pixel size.
 ///
 /// The app is rendered at the device's logical size first, so layouts are
 /// the real ones; only the finished image is scaled.
 @immutable
-class MarketingFrame implements ScreenshotFrame {
+final class MarketingFrame implements ScreenshotFrame {
   const MarketingFrame({
     this.background = const FrameBackground.solid(Color(0xFFF2F2F7)),
     this.caption,
     this.layout = FrameLayout.captionTop,
-    this.bezel = const DeviceBezel(),
+    this.device,
     this.canvasSize,
-    this.screenCornerRadius,
-    this.tilt = -8,
-    this.shadow = true,
     this.referenceSize = const Size(440, 956),
-  });
+    @Deprecated('Use device: DeviceStyle(bezel: ...). Removed in 3.0.')
+    this.bezel = const DeviceBezel(),
+    @Deprecated('Use device: DeviceStyle(cornerRadius: ...). Removed in 3.0.')
+    this.screenCornerRadius,
+    @Deprecated('Use layout: FrameLayout.bleed(angle: ...). Removed in 3.0.')
+    this.tilt = -8,
+    @Deprecated('Use device: DeviceStyle(shadow: ...). Removed in 3.0.')
+    this.shadow = true,
+  }) : assert(
+         // `identical`, not `==`: this runs in const constructors, where only
+         // primitive equality can be evaluated. The default is a canonical
+         // constant, so it's identical exactly when the caller didn't set it.
+         device == null ||
+             (identical(bezel, const DeviceBezel()) &&
+                 screenCornerRadius == null &&
+                 shadow),
+         'Set the bezel, corners and shadow on device: DeviceStyle(...), '
+         'not on MarketingFrame.',
+       );
+
+  final FrameBackground background;
+  final Caption? caption;
+
+  /// Where the caption and device go. See [FrameLayout].
+  final FrameLayout layout;
+
+  /// How the device is drawn. See [DeviceStyle]. Defaults to a rounded bezel
+  /// with a shadow.
+  final DeviceStyle? device;
+
+  /// Output size in pixels. Defaults to the device's full-screen pixel size,
+  /// so a store preset device produces an upload-ready image. Set this to
+  /// show one device on a different store's canvas, e.g. a 20:9 phone on
+  /// Google Play's 1080 × 1920.
+  final Size? canvasSize;
 
   /// The canvas that caption sizes, margins and gaps are designed for, in
   /// points. The default is a 6.9" iPhone.
@@ -226,28 +237,37 @@ class MarketingFrame implements ScreenshotFrame {
   /// device, so a caption set in device points would shrink on tablets.
   final Size referenceSize;
 
-  final FrameBackground background;
-  final Caption? caption;
-  final FrameLayout layout;
-
-  /// Null draws the screen with rounded corners and no outline.
+  @Deprecated('Use device: DeviceStyle(bezel: ...). Removed in 3.0.')
   final DeviceBezel? bezel;
 
-  /// Output size in pixels. Defaults to the device's full-screen pixel size,
-  /// so a store preset device produces an upload-ready image. Set this to
-  /// show one device on a different store's canvas, e.g. a 20:9 phone on
-  /// Google Play's 1080 × 1920.
-  final Size? canvasSize;
-
-  /// Screen corner radius in logical points. Defaults to
-  /// `Device.screenCornerRadius`, or 16 when the device has none.
+  @Deprecated('Use device: DeviceStyle(cornerRadius: ...). Removed in 3.0.')
   final double? screenCornerRadius;
 
   /// Rotation in degrees for [FrameLayout.tilted].
+  @Deprecated('Use layout: FrameLayout.bleed(angle: ...). Removed in 3.0.')
   final double tilt;
 
-  /// Soft shadow under the device.
+  @Deprecated('Use device: DeviceStyle(shadow: ...). Removed in 3.0.')
   final bool shadow;
+
+  /// The device style in effect: [device], or one built from the deprecated
+  /// 1.x parameters.
+  // ignore: deprecated_member_use_from_same_package
+  DeviceStyle get effectiveDevice =>
+      device ??
+      DeviceStyle(
+        // ignore: deprecated_member_use_from_same_package
+        bezel: bezel,
+        // ignore: deprecated_member_use_from_same_package
+        cornerRadius: screenCornerRadius,
+        // ignore: deprecated_member_use_from_same_package
+        shadow: shadow,
+      );
+
+  /// The tilt in effect for [layout], in degrees.
+  double get effectiveAngle =>
+      // ignore: deprecated_member_use_from_same_package
+      layout.spec.angle ?? tilt;
 
   @override
   MarketingFrame resolve(ScreenshotContext context) => this;

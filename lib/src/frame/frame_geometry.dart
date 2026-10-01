@@ -95,6 +95,12 @@ class FramePlan {
 /// Works out where the caption and the device go. Pure arithmetic, so each
 /// layout can be checked with numbers rather than by sampling pixels.
 abstract final class FrameGeometry {
+  /// The widest a bleeding device may be, as a fraction of the canvas.
+  static const double maxBleedWidth = 0.94;
+
+  /// The widest a tilted bleeding device may be.
+  static const double maxTiltedBleedWidth = 0.8;
+
   /// Gap between caption lines, in layout points.
   static const double lineGap = 8;
 
@@ -149,30 +155,46 @@ abstract final class FrameGeometry {
     // width, which drew it about a third too thick. Its width depends on the
     // screen's, so solve for the screen width with the bezel included:
     // device width = w * (1 + k).
-    final bezelPoints = frame.bezel?.width ?? 0;
+    final bezelPoints = frame.effectiveDevice.bezel?.width ?? 0;
     final k = 2 * bezelPoints / shownWidth;
+    final spec = frame.layout.spec;
 
     double w;
     double screenTop;
     var captionTop = topPad;
-    switch (frame.layout) {
-      case FrameLayout.captionTop:
-      case FrameLayout.captionBottom:
-        final availW = canvasSize.width - 2 * margin;
-        final availH =
-            canvasSize.height - topPad - margin - captionHeight - gap;
-        w = math.min(availW * 0.86 / (1 + k), availH / (aspect + k));
-        final bezel = bezelPoints * w / shownWidth;
-        if (frame.layout == FrameLayout.captionTop) {
-          screenTop = topPad + captionHeight + gap + bezel;
-        } else {
-          screenTop = topPad * 0.6 + bezel;
-          captionTop = screenTop + w * aspect + bezel + gap;
-        }
-      case FrameLayout.tilted:
-        w = (canvasSize.width - 2 * margin) * 0.8 / (1 + k);
-        final bezel = bezelPoints * w / shownWidth;
-        screenTop = topPad + captionHeight + gap + bezel + 16 * unit;
+    if (!spec.bleeds) {
+      // The whole device fits inside the canvas.
+      final availW = canvasSize.width - 2 * margin;
+      final availH = canvasSize.height - topPad - margin - captionHeight - gap;
+      w = math.min(availW * 0.86 / (1 + k), availH / (aspect + k));
+      final bezel = bezelPoints * w / shownWidth;
+      if (spec.captionFirst) {
+        screenTop = topPad + captionHeight + gap + bezel;
+      } else {
+        screenTop = topPad * 0.6 + bezel;
+        captionTop = screenTop + w * aspect + bezel + gap;
+      }
+    } else {
+      // Caption on top; the device runs off the bottom edge. A tilted
+      // device gets a little more room so its raised corner clears the
+      // caption.
+      final lift = frame.effectiveAngle == 0 ? 0.0 : 16 * unit;
+      final deviceTop = topPad + captionHeight + gap + lift;
+      // A rotated device sweeps wider than it is, so it gets a narrower cap
+      // to keep its corners on the canvas at the sides.
+      final widthCap = frame.effectiveAngle == 0
+          ? maxBleedWidth
+          : maxTiltedBleedWidth;
+      final maxWidth = canvasSize.width * widthCap / (1 + k);
+      if (spec.bleedVisible case final visible?) {
+        // Size the device so [visible] of its height is on the canvas:
+        // device height = w * (aspect + k).
+        final deviceHeight = (canvasSize.height - deviceTop) / visible;
+        w = math.min(deviceHeight / (aspect + k), maxWidth);
+      } else {
+        w = math.min(canvasSize.width * spec.bleedWidth! / (1 + k), maxWidth);
+      }
+      screenTop = deviceTop + bezelPoints * w / shownWidth;
     }
 
     final rect = Rect.fromLTWH(
@@ -189,9 +211,7 @@ abstract final class FrameGeometry {
       bezelWidth: bezelPoints * w / shownWidth,
       screen: ScreenPlacement(
         rect: rect,
-        angle: frame.layout == FrameLayout.tilted
-            ? frame.tilt * math.pi / 180
-            : 0,
+        angle: frame.effectiveAngle * math.pi / 180,
         imageSize: screen.imageSize,
         viewRect: viewRect,
         sourceRect: source,

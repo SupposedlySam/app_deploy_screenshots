@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
+import 'package:app_deploy_screenshots/src/frame/frame_geometry.dart';
 import 'package:app_deploy_screenshots/src/output/png_encoder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -429,6 +430,103 @@ void main() {
       );
       expect((png.width, png.height), (1320, 2868));
       expect(png.pixel(10, 400), const Color(0xFF808080));
+    });
+  });
+
+  group('DeviceStyle', () {
+    Future<DecodedPng> framed(
+      WidgetTester tester,
+      String file,
+      MarketingFrame frame,
+    ) => shoot(tester, file, statusBar: const StatusBarOverlay(), frame: frame);
+    const white = FrameBackground.solid(Color(0xFFFFFFFF));
+    // Where the Dynamic Island goes: inside the screen, centred, 11 pt from
+    // the top, 126 x 37 pt (computed from the same geometry the frame uses).
+    Rect islandArea(MarketingFrame frame) {
+      final p = FrameGeometry.plan(
+        frame: frame,
+        canvasSize: phone.pixelSize,
+        screen: ScreenSize(
+          imageSize: phone.pixelSize,
+          viewRect: Offset.zero & phone.size,
+        ),
+        captionHeight: 0,
+      ).screen!;
+      return Rect.fromPoints(
+        p.viewToCanvas(Offset(phone.size.width / 2 - 50, 16)),
+        p.viewToCanvas(Offset(phone.size.width / 2 + 50, 42)),
+      );
+    }
+
+    testWidgets('detailed() draws a cutout; the default does not', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const _Blocks());
+      final plain = await framed(
+        tester,
+        'style_plain',
+        const MarketingFrame(background: white),
+      );
+      final detailed = await framed(
+        tester,
+        'style_detailed',
+        const MarketingFrame(background: white, device: DeviceStyle.detailed()),
+      );
+      final area = islandArea(const MarketingFrame());
+      // Control: the default has no cutout, only the status bar's grey.
+      expect(plain.fraction(area, isDark, step: 2), 0);
+      expect(detailed.fraction(area, isDark, step: 2), greaterThan(0.9));
+    });
+
+    testWidgets('ScreenCrop.belowStatusBar leaves the status bar out', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const _Blocks());
+      final upperScreen = Rect.fromLTWH(200, 150, 920, 300);
+      final shown = await framed(
+        tester,
+        'style_bar',
+        const MarketingFrame(
+          background: white,
+          device: DeviceStyle.screenOnly(),
+        ),
+      );
+      final cropped = await framed(
+        tester,
+        'style_crop',
+        const MarketingFrame(
+          background: white,
+          device: DeviceStyle.screenOnly(crop: ScreenCrop.belowStatusBar),
+        ),
+      );
+      expect(shown.fraction(upperScreen, isDark, step: 2), greaterThan(0.002));
+      expect(cropped.fraction(upperScreen, isDark, step: 2), 0);
+    });
+
+    testWidgets('fadeOut blends the bottom of the device into the background', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const _Blocks());
+      const background = Color(0xFFFF0000);
+      final png = await framed(
+        tester,
+        'style_fade',
+        const MarketingFrame(
+          background: FrameBackground.solid(background),
+          device: DeviceStyle(fadeOut: 0.4, shadow: false),
+        ),
+      );
+      final w = png.width.toDouble();
+      // Grey screen shows at mid-height; only red background near the
+      // device's bottom edge.
+      expect(
+        png.fraction(Rect.fromLTWH(w * 0.4, 1300, w * 0.2, 60), isGrey),
+        greaterThan(0.9),
+      );
+      expect(
+        png.fraction(Rect.fromLTWH(w * 0.4, 2700, w * 0.2, 40), isRed),
+        greaterThan(0.95),
+      );
     });
   });
 

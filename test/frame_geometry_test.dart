@@ -162,4 +162,86 @@ void main() {
       );
     });
   });
+
+  group('bleed', () {
+    for (final (name, size) in [
+      ('phone', Device.appStoreIphone69.pixelSize),
+      ('Play phone', Device.playStorePhone.pixelSize),
+    ]) {
+      test('runs the device off the bottom of a $name canvas', () {
+        final p = FrameGeometry.plan(
+          frame: const MarketingFrame(layout: FrameLayout.bleed(visible: 0.8)),
+          canvasSize: size,
+          screen: ScreenSize(imageSize: image, viewRect: view),
+          captionHeight: 200,
+        );
+        final device = p.screen!.rect.inflate(p.bezelWidth);
+        final cap = size.width * FrameGeometry.maxBleedWidth;
+        final visible = (size.height - device.top) / device.height;
+        expect(device.bottom, greaterThan(size.height), reason: 'bleeds');
+        expect(device.width, lessThanOrEqualTo(cap + 1e-6));
+        // Either the requested fraction shows, or the width cap stopped it.
+        expect(
+          device.width >= cap - 1e-6 || (visible - 0.8).abs() < 1e-9,
+          isTrue,
+          reason: 'visible=$visible',
+        );
+      });
+    }
+
+    test('shows exactly the requested fraction when the width allows', () {
+      final p = FrameGeometry.plan(
+        frame: const MarketingFrame(layout: FrameLayout.bleed(visible: 0.95)),
+        canvasSize: image,
+        screen: ScreenSize(imageSize: image, viewRect: view),
+        captionHeight: 300,
+      );
+      final device = p.screen!.rect.inflate(p.bezelWidth);
+      expect((image.height - device.top) / device.height, closeTo(0.95, 1e-9));
+    });
+
+    test(
+      'caps the width on a squat canvas instead of overflowing sideways',
+      () {
+        final pad = Device.appStoreIpad13.pixelSize;
+        final p = FrameGeometry.plan(
+          frame: const MarketingFrame(layout: FrameLayout.bleed(visible: 0.5)),
+          canvasSize: pad,
+          screen: ScreenSize(imageSize: image, viewRect: view),
+          captionHeight: 200,
+        );
+        final device = p.screen!.rect.inflate(p.bezelWidth);
+        expect(
+          device.width,
+          closeTo(pad.width * FrameGeometry.maxBleedWidth, 1e-6),
+        );
+        expect(device.left, greaterThan(0));
+      },
+    );
+
+    test('control: captionTop keeps the whole device on the canvas', () {
+      final p = plan(const MarketingFrame());
+      expect(
+        p.screen!.rect.inflate(p.bezelWidth).bottom,
+        lessThan(image.height),
+      );
+    });
+
+    test('a tilted device keeps its corners on the canvas at the sides', () {
+      final p = FrameGeometry.plan(
+        frame: const MarketingFrame(layout: FrameLayout.bleed(angle: -8)),
+        canvasSize: image,
+        screen: ScreenSize(imageSize: image, viewRect: view),
+        captionHeight: 200,
+      );
+      final s = p.screen!;
+      final top = [
+        s.viewToCanvas(Offset.zero),
+        s.viewToCanvas(Offset(device.size.width, 0)),
+      ];
+      for (final corner in top) {
+        expect(corner.dx, inInclusiveRange(0, image.width));
+      }
+    });
+  });
 }

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'capture/capture_request.dart';
 import 'capture/capture_session.dart';
 import 'capture/screen_capturer.dart';
+import 'frame/device_style.dart';
 import 'frame/frame_compositor.dart';
 import 'frame/screen_overlays.dart';
 import 'output/report.dart';
@@ -34,9 +35,11 @@ class ScreenshotPipeline {
     try {
       return (await tester.runAsync(() async {
         final frame = request.frame?.resolve(context);
+        final crop = frame?.effectiveDevice.crop ?? ScreenCrop.none;
         final screen = await ScreenOverlays.apply(
           captured,
-          statusBar: request.statusBar,
+          // A status bar that the frame crops away isn't worth drawing.
+          statusBar: crop.hidesStatusBar ? null : request.statusBar,
           includeCanvasAnnotations: frame == null,
         );
         if (frame == null) return writer.write(context, screen, path: path);
@@ -46,7 +49,15 @@ class ScreenshotPipeline {
           canvasSize:
               frame.canvasSize ??
               Size(screen.width.toDouble(), screen.height.toDouble()),
-          screen: FrameScreen(image: screen, captured: captured),
+          screen: FrameScreen(
+            image: screen,
+            captured: captured,
+            sourceRect: crop.sourceRectFor(
+              captured.device,
+              Size(screen.width.toDouble(), screen.height.toDouble()),
+              captured.viewRect,
+            ),
+          ),
         );
         screen.dispose();
         return writer.write(
