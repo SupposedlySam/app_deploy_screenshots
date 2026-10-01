@@ -95,12 +95,6 @@ class FramePlan {
 /// Works out where the caption and the device go. Pure arithmetic, so each
 /// layout can be checked with numbers rather than by sampling pixels.
 abstract final class FrameGeometry {
-  /// The widest a bleeding device may be, as a fraction of the canvas.
-  static const double maxBleedWidth = 0.94;
-
-  /// The widest a tilted bleeding device may be.
-  static const double maxTiltedBleedWidth = 0.8;
-
   /// Gap between caption lines, in layout points.
   static const double lineGap = 8;
 
@@ -179,20 +173,20 @@ abstract final class FrameGeometry {
       // device gets a little more room so its raised corner clears the
       // caption.
       final lift = frame.effectiveAngle == 0 ? 0.0 : 16 * unit;
-      final deviceTop = topPad + captionHeight + gap + lift;
-      // A rotated device sweeps wider than it is, so it gets a narrower cap
-      // to keep its corners on the canvas at the sides.
-      final widthCap = frame.effectiveAngle == 0
-          ? maxBleedWidth
-          : maxTiltedBleedWidth;
-      final maxWidth = canvasSize.width * widthCap / (1 + k);
+      final minTop = topPad + captionHeight + gap + lift;
+      w = canvasSize.width * spec.bleedWidth! / (1 + k);
+      double deviceTop;
       if (spec.bleedVisible case final visible?) {
-        // Size the device so [visible] of its height is on the canvas:
-        // device height = w * (aspect + k).
-        final deviceHeight = (canvasSize.height - deviceTop) / visible;
-        w = math.min(deviceHeight / (aspect + k), maxWidth);
+        // Device height = w * (aspect + k). Move it down until [visible] of
+        // it is on the canvas; if that would reach into the caption, make
+        // it smaller instead, keeping [visible].
+        deviceTop = canvasSize.height - visible * w * (aspect + k);
+        if (deviceTop < minTop) {
+          w = (canvasSize.height - minTop) / (visible * (aspect + k));
+          deviceTop = minTop;
+        }
       } else {
-        w = math.min(canvasSize.width * spec.bleedWidth! / (1 + k), maxWidth);
+        deviceTop = minTop;
       }
       screenTop = deviceTop + bezelPoints * w / shownWidth;
     }

@@ -10,7 +10,9 @@ const frames = <MarketingFrame>[
   MarketingFrame(layout: FrameLayout.captionBottom),
   MarketingFrame(layout: FrameLayout.tilted),
   MarketingFrame(layout: FrameLayout.bleed()),
-  MarketingFrame(layout: FrameLayout.bleed(visible: 0.8, angle: -6)),
+  MarketingFrame(
+    layout: FrameLayout.bleed(width: 0.8, visible: 0.7, angle: -6),
+  ),
   MarketingFrame(device: DeviceStyle()),
   MarketingFrame(device: DeviceStyle.screenOnly()),
   MarketingFrame(device: DeviceStyle.detailed()),

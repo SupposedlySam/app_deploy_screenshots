@@ -21,19 +21,23 @@ sealed class FrameLayout {
   /// Caption above, a larger device rotated by `MarketingFrame.tilt`
   /// (default -8°), running off the bottom. The same as
   /// `FrameLayout.bleed(angle: -8)`, kept for 1.x code.
-  static const FrameLayout tilted = _Bleed(width: 0.72, angle: null);
+  static const FrameLayout tilted = _Bleed._tilted();
 
   /// Caption above, the device large and running off the bottom edge: the
   /// layout most top store listings use.
   ///
-  /// [visible] is how much of the device's height stays on the canvas, so
-  /// 0.9 cuts off the bottom 10%. The device is never wider than 94% of the
-  /// canvas, which limits how much can be cut off when the canvas has the
-  /// device's own shape (a phone on a phone canvas): there, more of it may
-  /// show than asked. It always runs off the bottom edge.
-  /// [angle] tilts it, in degrees (negative leans left).
-  const factory FrameLayout.bleed({double visible, double angle}) =
-      _Bleed.visible;
+  /// * [width] is the device's width, bezel included, as a fraction of the
+  ///   canvas: 0.86 by default, 0.78 when tilted so the corners stay on the
+  ///   canvas.
+  /// * [visible] is how much of the device's height stays on the canvas:
+  ///   0.8 cuts off the bottom fifth. The device moves down to hide the
+  ///   rest; if that would run it into the caption, it is drawn smaller.
+  /// * [angle] tilts it, in degrees (negative leans left).
+  const factory FrameLayout.bleed({
+    double? width,
+    double visible,
+    double angle,
+  }) = _Bleed;
 
   /// How the geometry should place the device. Not part of the public API.
   @internal
@@ -51,12 +55,13 @@ class LayoutSpec {
   });
 
   /// Whether the device runs off the bottom edge.
-  bool get bleeds => bleedWidth != null || bleedVisible != null;
+  bool get bleeds => bleedWidth != null;
 
-  /// The device's width as a fraction of the canvas.
+  /// The device's width as a fraction of the canvas, when it bleeds.
   final double? bleedWidth;
 
-  /// The fraction of the device's height left on the canvas.
+  /// The fraction of the device's height left on the canvas, or null to
+  /// place it right under the caption.
   final double? bleedVisible;
 
   /// Rotation in degrees, or null to use `MarketingFrame.tilt`.
@@ -87,13 +92,16 @@ class _Stacked extends FrameLayout {
 }
 
 class _Bleed extends FrameLayout {
-  const _Bleed({required double this.width, this.angle})
-    : visible = null,
+  const _Bleed({this.width, double this.visible = 0.8, double this.angle = 0})
+    : assert(width == null || (width > 0 && width <= 1.5)),
+      assert(visible > 0 && visible <= 1),
       super._();
 
-  const _Bleed.visible({double this.visible = 0.9, double this.angle = 0})
-    : assert(visible > 0 && visible <= 1),
-      width = null,
+  /// The 1.x tilted layout: the device sits right under the caption.
+  const _Bleed._tilted()
+    : width = 0.72,
+      visible = null,
+      angle = null,
       super._();
 
   final double? width;
@@ -101,8 +109,11 @@ class _Bleed extends FrameLayout {
   final double? angle;
 
   @override
-  LayoutSpec get spec =>
-      LayoutSpec(bleedWidth: width, bleedVisible: visible, angle: angle);
+  LayoutSpec get spec => LayoutSpec(
+    bleedWidth: width ?? (angle == 0 ? 0.86 : 0.78),
+    bleedVisible: visible,
+    angle: angle,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -115,7 +126,7 @@ class _Bleed extends FrameLayout {
   int get hashCode => Object.hash(width, visible, angle);
 
   @override
-  String toString() => angle == null
+  String toString() => visible == null
       ? 'FrameLayout.tilted'
-      : 'FrameLayout.bleed(visible: $visible, angle: $angle)';
+      : 'FrameLayout.bleed(width: $width, visible: $visible, angle: $angle)';
 }
