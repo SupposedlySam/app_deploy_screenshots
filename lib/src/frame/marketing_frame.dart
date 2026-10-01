@@ -6,6 +6,7 @@ import 'package:flutter/painting.dart';
 import '../variant.dart';
 import 'caption.dart';
 import 'device_style.dart';
+import 'frame_decoration.dart';
 import 'frame_layout.dart';
 
 export 'caption.dart' show Caption;
@@ -240,6 +241,7 @@ final class MarketingFrame implements ScreenshotFrame {
     this.device,
     this.canvasSize,
     this.referenceSize = const Size(440, 956),
+    this.decorations = const [],
     @Deprecated('Use device: DeviceStyle(bezel: ...). Removed in 3.0.')
     this.bezel = const DeviceBezel(),
     @Deprecated('Use device: DeviceStyle(cornerRadius: ...). Removed in 3.0.')
@@ -284,6 +286,10 @@ final class MarketingFrame implements ScreenshotFrame {
   /// the image. Store listings show screenshots at similar sizes whatever the
   /// device, so a caption set in device points would shrink on tablets.
   final Size referenceSize;
+
+  /// Logos, badges, stickers and other pieces placed on the canvas. See
+  /// [FrameDecoration].
+  final List<FrameDecoration> decorations;
 
   @Deprecated('Use device: DeviceStyle(bezel: ...). Removed in 3.0.')
   final DeviceBezel? bezel;

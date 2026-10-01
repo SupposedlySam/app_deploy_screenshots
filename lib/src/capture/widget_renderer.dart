@@ -15,10 +15,14 @@ class WidgetRenderer {
   /// Renders [widget] at [logicalSize] and [pixelRatio], so the image is
   /// `logicalSize * pixelRatio` pixels.
   ///
-  /// The widget gets a [MediaQuery] for that size, the given [brightness],
-  /// [locale] and [padding], plus [Directionality] and the default widgets
-  /// and Material localizations, so `Text` and most Material widgets work
-  /// without an app around them.
+  /// The widget gets what an app would give it, so `Text` and Material
+  /// widgets work with no app around them:
+  /// * a [MediaQuery] for that size, [brightness] and [padding];
+  /// * [Directionality] from [locale] (right-to-left for Arabic, Hebrew,
+  ///   Persian and Urdu);
+  /// * [Localizations] from [localizationsDelegates], or the default widgets
+  ///   and Material ones (English only) when none are given;
+  /// * a [Theme]: [theme], or a default one in [brightness].
   Future<ui.Image> render(
     WidgetTester tester,
     Widget widget, {
@@ -27,7 +31,8 @@ class WidgetRenderer {
     Brightness brightness = Brightness.light,
     Locale locale = const Locale('en', 'US'),
     EdgeInsets padding = EdgeInsets.zero,
-    TextDirection textDirection = TextDirection.ltr,
+    Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+    ThemeData? theme,
   }) async {
     final boundary = RenderRepaintBoundary();
     final renderView = RenderView(
@@ -37,7 +42,9 @@ class WidgetRenderer {
         physicalConstraints: BoxConstraints.tight(logicalSize * pixelRatio),
         devicePixelRatio: pixelRatio,
       ),
-      child: RenderPositionedBox(child: boundary),
+      // The view's tight constraints go straight to the boundary, so the
+      // widget fills the canvas whatever its intrinsic size.
+      child: boundary,
     );
     final pipeline = PipelineOwner()..rootNode = renderView;
     renderView.prepareInitialFrame();
@@ -53,15 +60,23 @@ class WidgetRenderer {
           padding: padding,
           viewPadding: padding,
         ),
-        child: Directionality(
-          textDirection: textDirection,
-          child: Localizations(
-            locale: locale,
-            delegates: const [
-              DefaultWidgetsLocalizations.delegate,
-              DefaultMaterialLocalizations.delegate,
-            ],
-            child: widget,
+        child: Localizations(
+          locale: locale,
+          delegates: [
+            ...?localizationsDelegates,
+            // Always available, so a delegate list without them still
+            // gives Text and Material widgets what they need in English.
+            DefaultWidgetsLocalizations.delegate,
+            DefaultMaterialLocalizations.delegate,
+          ],
+          // Inside Localizations, which sets its own direction from the
+          // widgets localizations (left-to-right for the defaults).
+          child: Directionality(
+            textDirection: directionOf(locale),
+            child: Theme(
+              data: theme ?? ThemeData(brightness: brightness),
+              child: widget,
+            ),
           ),
         ),
       ),
@@ -79,6 +94,9 @@ class WidgetRenderer {
 
     try {
       frame();
+      // Localizations load asynchronously when a delegate isn't synchronous.
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      frame();
       // Images decode asynchronously; wait for them, then paint again.
       await tester.runAsync(() => ImagePrimer.prime(root));
       frame();
@@ -95,4 +113,10 @@ class WidgetRenderer {
       pipeline.rootNode = null;
     }
   }
+
+  /// Text direction for [locale].
+  static TextDirection directionOf(Locale locale) =>
+      const {'ar', 'he', 'fa', 'ur', 'ps', 'yi'}.contains(locale.languageCode)
+      ? TextDirection.rtl
+      : TextDirection.ltr;
 }

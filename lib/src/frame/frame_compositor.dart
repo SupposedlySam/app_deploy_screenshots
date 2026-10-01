@@ -6,6 +6,7 @@ import 'annotation_painter.dart';
 import '../capture/captured_screen.dart';
 import 'caption_layout.dart';
 import 'device_style.dart';
+import 'frame_decoration.dart';
 import 'frame_geometry.dart';
 import 'marketing_frame.dart';
 
@@ -40,6 +41,7 @@ class FrameLayerContext {
     required this.plan,
     required this.caption,
     required this.screen,
+    required this.widgetImages,
   });
 
   final MarketingFrame frame;
@@ -48,6 +50,21 @@ class FrameLayerContext {
 
   /// The screenshot, or null for a slide without a device.
   final FrameScreen? screen;
+
+  /// Widget decorations, already rendered (widgets need the test binding,
+  /// so they are rendered before composing).
+  final Map<WidgetDecoration, ui.Image> widgetImages;
+
+  /// Area covered by decorations marked as text, in canvas pixels squared.
+  double decorationTextArea = 0;
+
+  /// Where [decoration] of [size] canvas pixels goes on the canvas.
+  Rect place(FrameDecoration decoration, Size size) {
+    final inner = (Offset.zero & plan.canvasSize).deflate(plan.margin);
+    return decoration.alignment
+        .inscribe(size, inner)
+        .shift(decoration.offset * plan.unit);
+  }
 }
 
 /// One stage of the frame, painted in order onto the canvas.
@@ -63,9 +80,11 @@ class FrameCompositor {
 
   static const List<FrameLayer> defaultLayers = [
     _BackgroundLayer(),
+    _DecorationLayer(behindDevice: true),
     _CaptionLayer(),
     _DeviceLayer(),
     _CanvasAnnotationLayer(),
+    _DecorationLayer(behindDevice: false),
   ];
 
   final List<FrameLayer> layers;
@@ -75,6 +94,7 @@ class FrameCompositor {
     required MarketingFrame frame,
     required Size canvasSize,
     FrameScreen? screen,
+    Map<WidgetDecoration, ui.Image> widgetImages = const {},
   }) async {
     final unit = FrameGeometry.unitFor(frame, canvasSize);
     final caption = CaptionLayout.of(
@@ -103,6 +123,7 @@ class FrameCompositor {
       plan: plan,
       caption: caption,
       screen: screen,
+      widgetImages: widgetImages,
     );
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Offset.zero & canvasSize);
@@ -117,7 +138,8 @@ class FrameCompositor {
     picture.dispose();
     return ComposedFrame(
       image,
-      caption.textArea / (canvasSize.width * canvasSize.height),
+      (caption.textArea + context.decorationTextArea) /
+          (canvasSize.width * canvasSize.height),
     );
   }
 }
@@ -133,6 +155,55 @@ class _BackgroundLayer implements FrameLayer {
         unit: context.plan.unit,
         screen: context.screen?.image,
       );
+}
+
+class _DecorationLayer implements FrameLayer {
+  const _DecorationLayer({required this.behindDevice});
+
+  final bool behindDevice;
+
+  @override
+  Future<void> paint(Canvas canvas, FrameLayerContext context) async {
+    final unit = context.plan.unit;
+    for (final d in context.frame.decorations) {
+      if (d.behindDevice != behindDevice) continue;
+      switch (d) {
+        case final ImageDecoration image:
+          final codec = await ui.instantiateImageCodec(image.bytes);
+          final decoded = (await codec.getNextFrame()).image;
+          final width = image.width * unit;
+          final size = Size(width, width * decoded.height / decoded.width);
+          canvas.drawImageRect(
+            decoded,
+            Offset.zero &
+                Size(decoded.width.toDouble(), decoded.height.toDouble()),
+            context.place(d, size),
+            Paint()..filterQuality = FilterQuality.high,
+          );
+          decoded.dispose();
+        case final WidgetDecoration widget:
+          final rendered = context.widgetImages[widget];
+          if (rendered == null) {
+            throw StateError(
+              'FrameDecoration.widget was not rendered before composing. '
+              'Widget decorations need the test binding; compose through '
+              'AppDeployScreenshots.',
+            );
+          }
+          final size = widget.size * unit;
+          canvas.drawImageRect(
+            rendered,
+            Offset.zero &
+                Size(rendered.width.toDouble(), rendered.height.toDouble()),
+            context.place(d, size),
+            Paint()..filterQuality = FilterQuality.high,
+          );
+          if (widget.countsAsText) {
+            context.decorationTextArea += size.width * size.height;
+          }
+      }
+    }
+  }
 }
 
 class _CaptionLayer implements FrameLayer {

@@ -10,15 +10,6 @@ import '../text_style_ext.dart';
 import '../variant.dart';
 import 'png_encoder.dart';
 
-/// What a screenshot's image was made from.
-enum ScreenshotSource {
-  /// A capture of the running app.
-  app,
-
-  /// A widget rendered on its own, such as a hero slide.
-  widget,
-}
-
 /// One written screenshot.
 @immutable
 class ScreenshotRecord {

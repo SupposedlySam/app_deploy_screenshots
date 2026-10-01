@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_deploy_screenshots/device.dart';
@@ -9,6 +9,8 @@ import 'package:app_deploy_screenshots/src/capture/capture_session.dart';
 import 'package:app_deploy_screenshots/src/capture/capture_request.dart';
 import 'package:app_deploy_screenshots/src/capture/screen_capturer.dart';
 import 'package:app_deploy_screenshots/src/screenshot_pipeline.dart';
+
+export 'src/screenshot_pipeline.dart' show SlideBuilder;
 import 'package:app_deploy_screenshots/src/frame/marketing_frame.dart';
 import 'package:app_deploy_screenshots/src/output/output_paths.dart';
 import 'package:app_deploy_screenshots/src/output/report.dart';
@@ -37,6 +39,8 @@ export 'src/frame/device_style.dart'
         DeviceGlow,
         ScreenCutout,
         ScreenCrop;
+export 'src/frame/frame_decoration.dart'
+    show FrameDecoration, ImageDecoration, WidgetDecoration;
 export 'src/frame/frame_layout.dart' show FrameLayout;
 export 'src/frame/caption.dart'
     show
@@ -49,10 +53,11 @@ export 'src/frame/caption.dart'
 export 'src/frame/marketing_frame.dart'
     show ScreenshotFrame, MarketingFrame, FrameBackground;
 export 'src/output/png_encoder.dart' show encodeOpaquePng;
-export 'src/output/report.dart' show ScreenshotRecord, ScreenshotSource;
+export 'src/output/report.dart' show ScreenshotRecord;
 export 'src/setup/fonts.dart' show TestAssetBundle;
 export 'src/status_bar.dart' show StatusBarOverlay;
-export 'src/variant.dart' show ScreenshotVariant, ScreenshotContext;
+export 'src/variant.dart'
+    show ScreenshotVariant, ScreenshotContext, ScreenshotSource;
 
 /// Function definition for allowing for custom file name building
 typedef FileNameBuilder = String Function(Device device);
@@ -221,6 +226,149 @@ class AppDeployScreenshots {
     annotations: annotations,
     frame: frame,
   );
+
+  /// Renders a widget as a whole store slide, on every store size: a hero,
+  /// a text poster, a photo with your logo, a stats page. It sits in the
+  /// listing like any screenshot (same folders, [order] and [variants]),
+  /// without touching the app under test, so it can go between captures.
+  ///
+  /// ```dart
+  /// await AppDeployScreenshots.widgetForStores(
+  ///   tester,
+  ///   'hero',
+  ///   order: 1,
+  ///   builder: (context, shot) => const MyHeroSlide(),
+  /// );
+  /// ```
+  ///
+  /// The widget is laid out in points of [referenceSize] (a 6.9" iPhone),
+  /// scaled by canvas area like captions, so one design keeps its
+  /// proportions from a phone to a tablet canvas. `shot` gives the device,
+  /// locale, brightness and canvas size.
+  ///
+  /// The widget gets a `MediaQuery`, text direction from the locale, a
+  /// `Theme` ([theme], or one in the variant's brightness) and
+  /// localizations: pass [localizationsDelegates] (e.g. your app's
+  /// `AppLocalizations.localizationsDelegates`) for anything beyond English.
+  static Future<List<ScreenshotRecord>> widgetForStores(
+    WidgetTester tester,
+    String name, {
+    required SlideBuilder builder,
+    List<Device> devices = const [...Device.appStore, ...Device.playStore],
+    String root = defaultRoot,
+    List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
+    int? order,
+    Size referenceSize = const Size(440, 956),
+    Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+    ThemeData Function(ScreenshotContext shot)? theme,
+  }) => _forEachShot(
+    name,
+    devices: devices,
+    variants: variants,
+    order: order,
+    source: ScreenshotSource.widget,
+    canvasFor: (device) => device.pixelSize,
+    shoot: (context) => _pipeline.widget(
+      tester,
+      context,
+      builder,
+      path: OutputPaths.store(root, context.device, context),
+      referenceSize: referenceSize,
+      localizationsDelegates: localizationsDelegates,
+      theme: theme?.call(context),
+    ),
+  );
+
+  /// Writes [frame] as a slide with no device, on every store size: a hero
+  /// or text poster made from the background, caption and decorations
+  /// alone, with no widget code.
+  ///
+  /// ```dart
+  /// await AppDeployScreenshots.posterForStores(
+  ///   tester,
+  ///   'welcome',
+  ///   order: 1,
+  ///   frame: MarketingFrame(
+  ///     background: FrameBackground.gradient(brandGradient),
+  ///     caption: Caption(headline: 'Simple. Reliable. **Private.**',
+  ///         emphasis: CaptionEmphasis.color(brandGreen)),
+  ///     decorations: [FrameDecoration.image(logo, width: 140,
+  ///         alignment: Alignment.bottomCenter)],
+  ///   ),
+  /// );
+  /// ```
+  ///
+  /// Use `ScreenshotFrame.builder` to vary it by locale or brightness. It is
+  /// an error for the builder to return null here.
+  static Future<List<ScreenshotRecord>> posterForStores(
+    WidgetTester tester,
+    String name, {
+    required ScreenshotFrame frame,
+    List<Device> devices = const [...Device.appStore, ...Device.playStore],
+    String root = defaultRoot,
+    List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
+    int? order,
+  }) => _forEachShot(
+    name,
+    devices: devices,
+    variants: variants,
+    order: order,
+    source: ScreenshotSource.poster,
+    canvasFor: (device) => device.pixelSize,
+    shoot: (context) {
+      final resolved = frame.resolve(context);
+      if (resolved == null) {
+        throw ArgumentError(
+          'posterForStores needs a frame, but the ScreenshotFrame.builder '
+          'returned null for ${context.device.name} ${context.variant}.',
+        );
+      }
+      final shot = ScreenshotContext(
+        name: context.name,
+        device: context.device,
+        variant: context.variant,
+        order: context.order,
+        source: context.source,
+        canvasSize: resolved.canvasSize ?? context.canvasSize,
+      );
+      return _pipeline.poster(
+        tester,
+        shot,
+        resolved,
+        path: OutputPaths.store(root, shot.device, shot),
+      );
+    },
+  );
+
+  /// Runs [shoot] once per device and variant, in the same order as the
+  /// screenshot methods.
+  static Future<List<ScreenshotRecord>> _forEachShot(
+    String name, {
+    required List<Device> devices,
+    required List<ScreenshotVariant> variants,
+    required int? order,
+    required ScreenshotSource source,
+    required Size Function(Device device) canvasFor,
+    required Future<ScreenshotRecord> Function(ScreenshotContext context) shoot,
+  }) async {
+    assert(devices.isNotEmpty);
+    assert(variants.isNotEmpty);
+    assert(order == null || order > 0, 'order starts at 1');
+    return [
+      for (final device in devices)
+        for (final variant in variants)
+          await shoot(
+            ScreenshotContext(
+              name: name,
+              device: variant.applyTo(device),
+              variant: variant,
+              order: order,
+              source: source,
+              canvasSize: canvasFor(device),
+            ),
+          ),
+    ];
+  }
 
   /// The directory screenshots are written to unless a path says otherwise.
   static const String defaultRoot = OutputPaths.defaultRoot;

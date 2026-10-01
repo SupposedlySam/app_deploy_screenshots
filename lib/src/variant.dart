@@ -1,4 +1,4 @@
-import 'dart:ui' show Brightness, Locale;
+import 'dart:ui' show Brightness, Locale, Size;
 
 import 'package:flutter/foundation.dart';
 
@@ -86,6 +86,18 @@ class ScreenshotVariant {
   String toString() => 'ScreenshotVariant(${suffix.isEmpty ? 'none' : suffix})';
 }
 
+/// What a screenshot's image was made from.
+enum ScreenshotSource {
+  /// A capture of the running app.
+  app,
+
+  /// A widget rendered on its own, such as a hero slide.
+  widget,
+
+  /// A frame with no device: background, caption and decorations.
+  poster,
+}
+
 /// What is being captured. Passed to every builder, so captions, frames and
 /// backgrounds can change per device, locale and brightness.
 @immutable
@@ -95,7 +107,16 @@ class ScreenshotContext {
     required this.device,
     this.variant = ScreenshotVariant.none,
     this.order,
+    this.canvasSize,
+    this.source = ScreenshotSource.app,
   });
+
+  /// The output size in pixels, when known before rendering (widget slides
+  /// and posters).
+  final Size? canvasSize;
+
+  /// What the slide is made from.
+  final ScreenshotSource source;
 
   /// The screenshot name passed to `byDevice` / `byDevices`.
   final String name;
