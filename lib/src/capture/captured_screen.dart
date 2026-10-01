@@ -42,8 +42,6 @@ class CapturedScreen {
   /// Maps a point in view coordinates (logical) to image pixels.
   Offset viewToImage(Offset p) => (p - viewRect.topLeft) * pixelsPerPoint;
 
-  /// Whether the capture includes the top of the screen, where the status bar
-  /// sits.
-  bool get coversTopOfScreen =>
-      viewRect.top <= 0 && viewRect.width >= viewSize.width;
+  /// Releases the image. Call once every stage is done with the capture.
+  void dispose() => image.dispose();
 }

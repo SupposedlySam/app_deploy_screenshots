@@ -9,10 +9,10 @@ import 'package:flutter/painting.dart';
 import '../variant.dart';
 import 'png_encoder.dart';
 
-/// What a slide's image was made from.
-enum SlideKind {
+/// What a screenshot's image was made from.
+enum ScreenshotSource {
   /// A capture of the running app.
-  screenshot,
+  app,
 
   /// A widget rendered on its own, such as a hero slide.
   widget,
@@ -28,7 +28,7 @@ class ScreenshotRecord {
     required this.height,
     required this.framed,
     this.captionCoverage,
-    this.kind = SlideKind.screenshot,
+    this.source = ScreenshotSource.app,
   });
 
   final String path;
@@ -44,13 +44,13 @@ class ScreenshotRecord {
   final double? captionCoverage;
 
   /// What the image was made from.
-  final SlideKind kind;
+  final ScreenshotSource source;
 
   Map<String, Object?> toJson(String root) {
     final device = context.device;
     return {
       'path': _relative(path, root),
-      'kind': kind.name,
+      'source': source.name,
       'name': context.name,
       'order': context.order,
       'device': device.name,

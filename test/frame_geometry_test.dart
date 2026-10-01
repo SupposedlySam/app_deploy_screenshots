@@ -1,5 +1,6 @@
 import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
 import 'package:app_deploy_screenshots/src/frame/frame_geometry.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Layout arithmetic, checked with numbers rather than pixels.
@@ -12,12 +13,15 @@ void main() {
   final image = device.pixelSize;
   final view = Offset.zero & device.size;
 
-  FramePlan plan(MarketingFrame frame, {double caption = 200}) =>
+  FramePlan plan(MarketingFrame frame, {double caption = 200, Rect? source}) =>
       FrameGeometry.plan(
         frame: frame,
         canvasSize: frame.canvasSize ?? image,
-        imageSize: image,
-        viewRect: view,
+        screen: ScreenSize(
+          imageSize: image,
+          viewRect: view,
+          sourceRect: source,
+        ),
         captionHeight: caption,
       );
 
@@ -30,15 +34,15 @@ void main() {
       test('is its width in device points at the drawn scale ($layout)', () {
         final p = plan(MarketingFrame(layout: layout));
         // 10 pt, at the canvas pixels per point the screen is drawn at.
-        expect(p.bezelWidth, closeTo(10 * p.screen.canvasPerPoint, 1e-9));
+        expect(p.bezelWidth, closeTo(10 * p.screen!.canvasPerPoint, 1e-9));
         // Control: the screen is scaled down, so this is not 10 * 3.
-        expect(p.screen.canvasPerPoint, lessThan(device.devicePixelRatio));
+        expect(p.screen!.canvasPerPoint, lessThan(device.devicePixelRatio));
       });
     }
 
     test('fits the whole device, bezel included, inside the margins', () {
       final p = plan(const MarketingFrame());
-      final outer = p.screen.rect.inflate(p.bezelWidth);
+      final outer = p.screen!.rect.inflate(p.bezelWidth);
       expect(outer.left, greaterThanOrEqualTo(p.margin));
       expect(outer.right, lessThanOrEqualTo(image.width - p.margin));
       expect(outer.bottom, lessThanOrEqualTo(image.height));
@@ -47,10 +51,10 @@ void main() {
     test('a thicker bezel shrinks the screen rather than the margins', () {
       final thin = plan(const MarketingFrame(bezel: DeviceBezel(width: 4)));
       final thick = plan(const MarketingFrame(bezel: DeviceBezel(width: 24)));
-      expect(thick.screen.rect.width, lessThan(thin.screen.rect.width));
+      expect(thick.screen!.rect.width, lessThan(thin.screen!.rect.width));
       expect(
-        thick.screen.rect.inflate(thick.bezelWidth).width,
-        lessThanOrEqualTo(thin.screen.rect.inflate(thin.bezelWidth).width + 1),
+        thick.screen!.rect.inflate(thick.bezelWidth).width,
+        lessThanOrEqualTo(thin.screen!.rect.inflate(thin.bezelWidth).width + 1),
       );
     });
   });
@@ -58,7 +62,7 @@ void main() {
   group('layouts', () {
     test('captionTop puts the screen below the caption', () {
       final p = plan(const MarketingFrame(), caption: 300);
-      expect(p.screen.rect.top, greaterThan(p.captionTop + 300));
+      expect(p.screen!.rect.top, greaterThan(p.captionTop + 300));
     });
 
     test('captionBottom puts the caption below the screen', () {
@@ -66,20 +70,20 @@ void main() {
         const MarketingFrame(layout: FrameLayout.captionBottom),
         caption: 300,
       );
-      expect(p.captionTop, greaterThan(p.screen.rect.bottom));
+      expect(p.captionTop, greaterThan(p.screen!.rect.bottom));
     });
 
     test('tilted rotates by the frame tilt', () {
       final p = plan(
         const MarketingFrame(layout: FrameLayout.tilted, tilt: -8),
       );
-      expect(p.screen.angle, closeTo(-8 * 3.141592653589793 / 180, 1e-12));
+      expect(p.screen!.angle, closeTo(-8 * 3.141592653589793 / 180, 1e-12));
     });
   });
 
   group('ScreenPlacement', () {
     test('maps the screen corners and centre onto its rect when unrotated', () {
-      final p = plan(const MarketingFrame()).screen;
+      final p = plan(const MarketingFrame()).screen!;
       expect(p.imageToCanvas(Offset.zero), near(p.rect.topLeft));
       expect(
         p.imageToCanvas(image.bottomRight(Offset.zero)),
@@ -89,7 +93,7 @@ void main() {
     });
 
     test('keeps the centre fixed under rotation', () {
-      final p = plan(const MarketingFrame(layout: FrameLayout.tilted)).screen;
+      final p = plan(const MarketingFrame(layout: FrameLayout.tilted)).screen!;
       final centre = p.viewToCanvas(view.center);
       expect(centre.dx, closeTo(p.rect.center.dx, 1e-9));
       expect(centre.dy, closeTo(p.rect.center.dy, 1e-9));
@@ -116,5 +120,46 @@ void main() {
         1e-12,
       ),
     );
+  });
+
+  test('a slide without a device has no screen and keeps the caption', () {
+    final p = FrameGeometry.plan(
+      frame: const MarketingFrame(),
+      canvasSize: image,
+      screen: null,
+      captionHeight: 200,
+    );
+    expect(p.screen, isNull);
+    expect(p.captionTop, greaterThan(0));
+    expect(p.captionWidth, image.width - 2 * p.margin);
+  });
+
+  group('cropped source', () {
+    // Hide a 62 pt status bar: drop the top 186 px of the image.
+    final crop = Rect.fromLTRB(0, 62 * 3, image.width, image.height);
+
+    test('keeps the shown area\'s aspect ratio', () {
+      final p = plan(const MarketingFrame(), source: crop).screen!;
+      expect(
+        p.rect.height / p.rect.width,
+        closeTo(crop.height / crop.width, 1e-9),
+      );
+    });
+
+    test('maps view points below the crop line onto the drawn screen', () {
+      final p = plan(const MarketingFrame(), source: crop).screen!;
+      // The first point shown is at the top-left of the drawn screen.
+      expect(p.viewToCanvas(const Offset(0, 62)), near(p.rect.topLeft));
+      expect(
+        p.viewToCanvas(Offset(device.size.width, device.size.height)),
+        near(p.rect.bottomRight),
+      );
+      // Control: without the crop, the same point lands lower.
+      final full = plan(const MarketingFrame()).screen!;
+      expect(
+        full.viewToCanvas(const Offset(0, 62)).dy,
+        greaterThan(full.rect.top),
+      );
+    });
   });
 }

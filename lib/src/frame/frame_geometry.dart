@@ -14,7 +14,8 @@ class ScreenPlacement {
     required this.angle,
     required this.imageSize,
     required this.viewRect,
-  });
+    Rect? sourceRect,
+  }) : _sourceRect = sourceRect;
 
   /// The screen, unrotated, in canvas pixels. Rotation is about its centre.
   final Rect rect;
@@ -28,16 +29,24 @@ class ScreenPlacement {
   /// The part of the device's view the screenshot covers, in logical points.
   final Rect viewRect;
 
+  final Rect? _sourceRect;
+
+  /// The part of the screenshot drawn into [rect], in screenshot pixels:
+  /// the whole image, or less when the frame crops it (for example to hide
+  /// the status bar).
+  Rect get sourceRect => _sourceRect ?? Offset.zero & imageSize;
+
   /// Canvas pixels per screenshot pixel.
-  double get canvasPerImagePixel => rect.width / imageSize.width;
+  double get canvasPerImagePixel => rect.width / sourceRect.width;
 
   /// Canvas pixels per device logical point.
-  double get canvasPerPoint => rect.width / viewRect.width;
+  double get canvasPerPoint =>
+      canvasPerImagePixel * imageSize.width / viewRect.width;
 
   /// Maps a point in screenshot pixels to the canvas.
   Offset imageToCanvas(Offset p) {
-    final dx = (p.dx - imageSize.width / 2) * canvasPerImagePixel;
-    final dy = (p.dy - imageSize.height / 2) * canvasPerImagePixel;
+    final dx = (p.dx - sourceRect.center.dx) * canvasPerImagePixel;
+    final dy = (p.dy - sourceRect.center.dy) * canvasPerImagePixel;
     final c = math.cos(angle), s = math.sin(angle);
     return Offset(
       rect.center.dx + dx * c - dy * s,
@@ -62,6 +71,9 @@ class FramePlan {
     required this.bezelWidth,
   });
 
+  /// Width available to captions, in canvas pixels.
+  double get captionWidth => canvasSize.width - 2 * margin;
+
   final Size canvasSize;
 
   /// Canvas pixels per layout point (captions, margins, gaps).
@@ -73,7 +85,8 @@ class FramePlan {
   /// Top of the caption block, in canvas pixels.
   final double captionTop;
 
-  final ScreenPlacement screen;
+  /// Where the screen goes, or null for a slide without a device.
+  final ScreenPlacement? screen;
 
   /// Bezel thickness, in canvas pixels.
   final double bezelWidth;
@@ -94,18 +107,42 @@ abstract final class FrameGeometry {
         (frame.referenceSize.width * frame.referenceSize.height),
   );
 
+  /// Side margin for captions, in canvas pixels.
+  static double marginFor(double unit) => 24 * unit;
+
+  /// Width available to captions on [canvasSize], in canvas pixels.
+  static double captionWidthFor(MarketingFrame frame, Size canvasSize) =>
+      canvasSize.width - 2 * marginFor(unitFor(frame, canvasSize));
+
+  /// Plans a slide. [screen] describes the screenshot, or is null for a
+  /// slide with no device (a poster): then the caption sits where it would
+  /// above a device and the canvas holds only background, caption and
+  /// decorations.
   static FramePlan plan({
     required MarketingFrame frame,
     required Size canvasSize,
-    required Size imageSize,
-    required Rect viewRect,
+    required ScreenSize? screen,
     required double captionHeight,
   }) {
     final unit = unitFor(frame, canvasSize);
-    final margin = 24 * unit;
+    final margin = marginFor(unit);
     final topPad = 48 * unit;
     final gap = captionHeight > 0 ? 28 * unit : 0.0;
-    final aspect = imageSize.height / imageSize.width;
+    if (screen == null) {
+      return FramePlan(
+        canvasSize: canvasSize,
+        unit: unit,
+        margin: margin,
+        captionTop: topPad,
+        screen: null,
+        bezelWidth: 0,
+      );
+    }
+    final viewRect = screen.viewRect;
+    final source = screen.sourceRect;
+    // Logical points shown: a crop shows fewer than the whole view.
+    final shownWidth = viewRect.width * source.width / screen.imageSize.width;
+    final aspect = source.height / source.width;
 
     // The bezel is measured in the device's points, at the size the screen is
     // drawn. Before 1.2 it was scaled as if the screen filled the canvas
@@ -113,7 +150,7 @@ abstract final class FrameGeometry {
     // screen's, so solve for the screen width with the bezel included:
     // device width = w * (1 + k).
     final bezelPoints = frame.bezel?.width ?? 0;
-    final k = 2 * bezelPoints / viewRect.width;
+    final k = 2 * bezelPoints / shownWidth;
 
     double w;
     double screenTop;
@@ -125,7 +162,7 @@ abstract final class FrameGeometry {
         final availH =
             canvasSize.height - topPad - margin - captionHeight - gap;
         w = math.min(availW * 0.86 / (1 + k), availH / (aspect + k));
-        final bezel = bezelPoints * w / viewRect.width;
+        final bezel = bezelPoints * w / shownWidth;
         if (frame.layout == FrameLayout.captionTop) {
           screenTop = topPad + captionHeight + gap + bezel;
         } else {
@@ -134,7 +171,7 @@ abstract final class FrameGeometry {
         }
       case FrameLayout.tilted:
         w = (canvasSize.width - 2 * margin) * 0.8 / (1 + k);
-        final bezel = bezelPoints * w / viewRect.width;
+        final bezel = bezelPoints * w / shownWidth;
         screenTop = topPad + captionHeight + gap + bezel + 16 * unit;
     }
 
@@ -149,15 +186,30 @@ abstract final class FrameGeometry {
       unit: unit,
       margin: margin,
       captionTop: captionTop,
-      bezelWidth: bezelPoints * w / viewRect.width,
+      bezelWidth: bezelPoints * w / shownWidth,
       screen: ScreenPlacement(
         rect: rect,
         angle: frame.layout == FrameLayout.tilted
             ? frame.tilt * math.pi / 180
             : 0,
-        imageSize: imageSize,
+        imageSize: screen.imageSize,
         viewRect: viewRect,
+        sourceRect: source,
       ),
     );
   }
+}
+
+/// A screenshot as the geometry sees it: its pixel size, the view area it
+/// covers, and the part of it to show.
+class ScreenSize {
+  ScreenSize({
+    required this.imageSize,
+    required this.viewRect,
+    Rect? sourceRect,
+  }) : sourceRect = sourceRect ?? Offset.zero & imageSize;
+
+  final Size imageSize;
+  final Rect viewRect;
+  final Rect sourceRect;
 }

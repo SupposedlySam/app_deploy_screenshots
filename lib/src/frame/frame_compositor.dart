@@ -2,7 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 
-import '../annotations.dart';
+import 'annotation_painter.dart';
 import '../capture/captured_screen.dart';
 import 'caption_layout.dart';
 import 'frame_geometry.dart';
@@ -18,25 +18,35 @@ class ComposedFrame {
   final double captionCoverage;
 }
 
+/// The screenshot going into a frame.
+class FrameScreen {
+  FrameScreen({required this.image, required this.captured, this.sourceRect});
+
+  /// The screenshot with the status bar and on-screen annotations drawn.
+  final ui.Image image;
+
+  /// The raw capture, for anything sampled from the unannotated screen.
+  final CapturedScreen captured;
+
+  /// The part of [image] to show, in pixels; null for all of it.
+  final Rect? sourceRect;
+}
+
 /// Everything a layer can read while painting.
 class FrameLayerContext {
   FrameLayerContext({
     required this.frame,
     required this.plan,
     required this.caption,
-    required this.screenImage,
-    required this.captured,
+    required this.screen,
   });
 
   final MarketingFrame frame;
   final FramePlan plan;
   final CaptionLayout caption;
 
-  /// The screenshot with the status bar and on-screen annotations drawn.
-  final ui.Image screenImage;
-
-  /// The raw capture, for anything sampled from the unannotated screen.
-  final CapturedScreen captured;
+  /// The screenshot, or null for a slide without a device.
+  final FrameScreen? screen;
 }
 
 /// One stage of the frame, painted in order onto the canvas.
@@ -59,28 +69,31 @@ class FrameCompositor {
 
   final List<FrameLayer> layers;
 
+  /// Composes [frame] onto a [canvasSize] canvas, around [screen] if given.
   Future<ComposedFrame> compose({
     required MarketingFrame frame,
-    required ui.Image screenImage,
-    required CapturedScreen captured,
+    required Size canvasSize,
+    FrameScreen? screen,
   }) async {
-    final canvasSize =
-        frame.canvasSize ??
-        Size(screenImage.width.toDouble(), screenImage.height.toDouble());
     final unit = FrameGeometry.unitFor(frame, canvasSize);
     final caption = CaptionLayout.of(
       frame,
-      canvasSize.width - 2 * 24 * unit,
+      FrameGeometry.captionWidthFor(frame, canvasSize),
       unit,
     );
     final plan = FrameGeometry.plan(
       frame: frame,
       canvasSize: canvasSize,
-      imageSize: Size(
-        screenImage.width.toDouble(),
-        screenImage.height.toDouble(),
-      ),
-      viewRect: captured.viewRect,
+      screen: screen == null
+          ? null
+          : ScreenSize(
+              imageSize: Size(
+                screen.image.width.toDouble(),
+                screen.image.height.toDouble(),
+              ),
+              viewRect: screen.captured.viewRect,
+              sourceRect: screen.sourceRect,
+            ),
       captionHeight: caption.height,
     );
 
@@ -88,8 +101,7 @@ class FrameCompositor {
       frame: frame,
       plan: plan,
       caption: caption,
-      screenImage: screenImage,
-      captured: captured,
+      screen: screen,
     );
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Offset.zero & canvasSize);
@@ -134,10 +146,12 @@ class _DeviceLayer implements FrameLayer {
 
   @override
   Future<void> paint(Canvas canvas, FrameLayerContext context) async {
-    final frame = context.frame;
+    final screen = context.screen;
     final placement = context.plan.screen;
+    if (screen == null || placement == null) return;
+    final frame = context.frame;
     final unit = context.plan.unit;
-    final device = context.captured.device;
+    final device = screen.captured.device;
     final radiusPoints =
         frame.screenCornerRadius ??
         (device.screenCornerRadius > 0 ? device.screenCornerRadius : 16);
@@ -170,8 +184,8 @@ class _DeviceLayer implements FrameLayer {
     canvas
       ..clipRRect(screenShape)
       ..drawImageRect(
-        context.screenImage,
-        Offset.zero & placement.imageSize,
+        screen.image,
+        placement.sourceRect,
         local,
         Paint()..filterQuality = FilterQuality.high,
       )
@@ -184,10 +198,13 @@ class _CanvasAnnotationLayer implements FrameLayer {
 
   @override
   Future<void> paint(Canvas canvas, FrameLayerContext context) async {
+    final screen = context.screen;
+    final placement = context.plan.screen;
+    if (screen == null || placement == null) return;
     AnnotationPainter.paintOnCanvas(
       canvas,
-      captured: context.captured,
-      placement: context.plan.screen,
+      captured: screen.captured,
+      placement: placement,
       canvasSize: context.plan.canvasSize,
     );
   }

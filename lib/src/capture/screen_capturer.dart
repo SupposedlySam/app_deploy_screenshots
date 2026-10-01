@@ -10,7 +10,10 @@ import '../../extensions.dart';
 import '../annotations.dart';
 import '../status_bar.dart';
 import '../variant.dart';
+import 'annotation_resolver.dart';
+import 'capture_request.dart';
 import 'capture_session.dart';
+import 'image_primer.dart';
 import 'captured_screen.dart';
 
 /// Pumps a custom amount before capture, e.g. a fixed duration for screens
@@ -32,15 +35,9 @@ class ScreenCapturer {
 
   Future<CapturedScreen> capture(
     WidgetTester tester,
-    ScreenshotContext context, {
-    Finder? finder,
-    DeviceSetup? deviceSetup,
-    CustomPump? customPump,
-    bool waitForImages = true,
-    bool applyDeviceOverrides = true,
-    List<ScreenshotAnnotation> annotations = const [],
-    StatusBarOverlay? statusBar,
-  }) async {
+    ScreenshotContext context,
+    CaptureRequest request,
+  ) async {
     late CapturedScreen captured;
 
     Future<void> body() async {
@@ -70,10 +67,10 @@ class ScreenCapturer {
           session.lastBrightness = context.device.brightness;
         }
 
-        await (deviceSetup ?? _twoPumps)(context.device, tester);
-        await (customPump ?? _pumpAndSettle)(tester);
+        await (request.deviceSetup ?? _twoPumps)(context.device, tester);
+        await (request.customPump ?? _pumpAndSettle)(tester);
 
-        if (waitForImages) {
+        if (request.waitForImages) {
           await primeAssets(tester);
           // Decoding completes outside the frame; one more frame paints it.
           await tester.pump();
@@ -82,9 +79,9 @@ class ScreenCapturer {
         captured = await _grab(
           tester,
           context.device,
-          finder,
-          annotations,
-          statusBar,
+          request.finder,
+          request.annotations,
+          request.statusBar,
         );
       } finally {
         debugDisableShadows = shadowsWereDisabled;
@@ -93,7 +90,7 @@ class ScreenCapturer {
       }
     }
 
-    await (applyDeviceOverrides
+    await (request.applyDeviceOverrides
         ? tester.binding.runWithDeviceOverrides(context.device, body: body)
         : body());
     return captured;
@@ -108,7 +105,7 @@ class ScreenCapturer {
     List<ScreenshotAnnotation> annotations,
     StatusBarOverlay? statusBar,
   ) async {
-    final resolved = resolveAnnotations(tester, annotations);
+    final resolved = AnnotationResolver.resolve(tester, annotations);
     final element = (finder ?? find.byWidgetPredicate((w) => true))
         .evaluate()
         .first;
@@ -187,26 +184,10 @@ class ScreenCapturer {
     );
   }
 
-  /// Waits for every [Image] widget and [BoxDecoration] image in the tree to
-  /// finish decoding.
-  static Future<void> primeAssets(WidgetTester tester) async {
-    final imageElements = find.byType(Image, skipOffstage: false).evaluate();
-    final boxElements = find
-        .byType(DecoratedBox, skipOffstage: false)
-        .evaluate();
-    await tester.runAsync(() async {
-      for (final element in imageElements) {
-        final widget = element.widget;
-        if (widget is Image) await precacheImage(widget.image, element);
-      }
-      for (final element in boxElements) {
-        final decoration = (element.widget as DecoratedBox).decoration;
-        if (decoration is BoxDecoration && decoration.image != null) {
-          await precacheImage(decoration.image!.image, element);
-        }
-      }
-    });
-  }
+  /// Waits for every [Image] widget and [BoxDecoration] image in the app's
+  /// tree to finish decoding.
+  static Future<void> primeAssets(WidgetTester tester) =>
+      tester.runAsync(() => ImagePrimer.prime(tester.binding.rootElement!));
 
   static Future<void> _pumpAndSettle(WidgetTester tester) =>
       tester.pumpAndSettle();

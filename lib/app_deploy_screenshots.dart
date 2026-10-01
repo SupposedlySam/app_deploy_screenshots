@@ -6,11 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:app_deploy_screenshots/device.dart';
 import 'package:app_deploy_screenshots/src/annotations.dart';
 import 'package:app_deploy_screenshots/src/capture/capture_session.dart';
+import 'package:app_deploy_screenshots/src/capture/capture_request.dart';
 import 'package:app_deploy_screenshots/src/capture/screen_capturer.dart';
+import 'package:app_deploy_screenshots/src/screenshot_pipeline.dart';
 import 'package:app_deploy_screenshots/src/frame/marketing_frame.dart';
 import 'package:app_deploy_screenshots/src/output/output_paths.dart';
 import 'package:app_deploy_screenshots/src/output/report.dart';
-import 'package:app_deploy_screenshots/src/output/slide_writer.dart';
 import 'package:app_deploy_screenshots/src/setup/channel_mocks.dart';
 import 'package:app_deploy_screenshots/src/setup/fonts.dart';
 import 'package:app_deploy_screenshots/src/status_bar.dart';
@@ -36,7 +37,7 @@ export 'src/frame/marketing_frame.dart'
         Caption,
         DeviceBezel;
 export 'src/output/png_encoder.dart' show encodeOpaquePng;
-export 'src/output/report.dart' show ScreenshotRecord, SlideKind;
+export 'src/output/report.dart' show ScreenshotRecord, ScreenshotSource;
 export 'src/setup/fonts.dart' show TestAssetBundle;
 export 'src/status_bar.dart' show StatusBarOverlay;
 export 'src/variant.dart' show ScreenshotVariant, ScreenshotContext;
@@ -50,8 +51,7 @@ typedef FileNameBuilder = String Function(Device device);
 /// the capture pipeline in `src/`: setup, capture, framing and output.
 class AppDeployScreenshots {
   static final _session = CaptureSession.shared;
-  static final _capturer = ScreenCapturer(_session);
-  static final _writer = SlideWriter(_session);
+  static final _pipeline = ScreenshotPipeline(_session);
 
   /// Comprehensive setup for screenshot tests with font loading and configuration
   ///
@@ -297,26 +297,21 @@ class AppDeployScreenshots {
       variant: variant,
       order: order,
     );
-    final captured = await _capturer.capture(
+    return _pipeline.screen(
       tester,
       context,
-      finder: finder,
-      deviceSetup: deviceSetup,
-      customPump: customPump,
-      waitForImages: waitForImages,
-      applyDeviceOverrides: applyDeviceOverrides,
-      annotations: annotations,
-      statusBar: statusBar,
-    );
-    return (await tester.runAsync(
-      () => _writer.writeScreen(
-        context,
-        captured,
-        path: fileName,
+      CaptureRequest(
+        finder: finder,
+        deviceSetup: deviceSetup,
+        customPump: customPump,
+        waitForImages: waitForImages,
+        applyDeviceOverrides: applyDeviceOverrides,
         statusBar: statusBar,
-        frame: frame?.resolve(context),
+        annotations: annotations,
+        frame: frame,
       ),
-    ))!;
+      path: fileName,
+    );
   }
 
   static Future<List<ScreenshotRecord>> _captureAll(

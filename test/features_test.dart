@@ -180,7 +180,7 @@ void main() {
           255, 0, 0, 255, // opaque red
           0, 0, 255, 128, // half-transparent blue
         ]);
-        final bytes = encodeRgbaAsOpaquePng(pixels, 2, 1);
+        final bytes = PngEncoder.encodeRgba(pixels, 2, 1);
         expect(bytes[25], 2);
         final file = File('$root/encoder.png')..createSync(recursive: true);
         file.writeAsBytesSync(bytes);
