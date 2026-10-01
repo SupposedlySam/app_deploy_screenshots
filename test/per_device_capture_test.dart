@@ -9,7 +9,7 @@ import 'support/png.dart';
 /// Regressions for per-device capture: setup, image decoding and safe area
 /// must all happen for every device, not once for the first.
 void main() {
-  const root = 'app_deploy_screenshots/per_device';
+  final root = Directory.systemTemp.createTempSync('ads_per_device_').path;
   const devices = [Device.iphone16Pro, Device.ipadProM4];
 
   tearDownAll(() {

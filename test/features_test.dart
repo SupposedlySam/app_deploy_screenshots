@@ -11,7 +11,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/demo_app.dart';
 import 'support/png.dart';
 
-const root = 'app_deploy_screenshots/features';
+// Each test file writes to its own temp directory: files run in
+// parallel, and a shared output folder lets one file's cleanup delete
+// another's screenshots mid-run.
+final root = Directory.systemTemp.createTempSync('ads_features_').path;
 
 /// A known picture: a grey screen with a blue 100×60 box at (40, 200) and a
 /// green 80×40 box at (40, 500), in logical points.
@@ -932,7 +935,7 @@ void main() {
     testWidgets('warns about Play captions over the coverage limit only', (
       tester,
     ) async {
-      const reportRoot = '$root/coverage';
+      final reportRoot = '$root/coverage';
       await tester.pumpWidget(const _Blocks());
       MarketingFrame frame(double size) => MarketingFrame(
         caption: Caption(
@@ -975,7 +978,7 @@ void main() {
     testWidgets('writes a manifest and one contact sheet per folder', (
       tester,
     ) async {
-      const reportRoot = '$root/report';
+      final reportRoot = '$root/report';
       await tester.pumpWidget(const _Blocks());
       for (final (order, name) in [(1, 'a'), (2, 'b')]) {
         await AppDeployScreenshots.forStores(

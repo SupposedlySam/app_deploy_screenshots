@@ -9,7 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/png.dart';
 
-const root = 'app_deploy_screenshots/slides';
+// Each test file writes to its own temp directory: files run in
+// parallel, and a shared output folder lets one file's cleanup delete
+// another's screenshots mid-run.
+final root = Directory.systemTemp.createTempSync('ads_slides_').path;
 
 bool isRed(Color c) => c.r > 0.8 && c.g < 0.25 && c.b < 0.25;
 bool isGreen(Color c) => c.g > 0.8 && c.r < 0.25 && c.b < 0.25;

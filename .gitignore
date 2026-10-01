@@ -30,3 +30,6 @@ build/
 
 # FVM Version Cache
 .fvm/
+# Written by the test suite.
+/app_deploy_screenshots/
+/test_*.png

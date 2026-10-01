@@ -42,3 +42,4 @@ app_deploy_screenshots/
 # Local tooling. pub ignores .git/info/exclude, so it must be listed here:
 # 1.1.0 shipped lamp.lock because it was only excluded there.
 lamp.lock
+/test_*.png
