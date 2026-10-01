@@ -87,8 +87,8 @@ void main() {
     });
 
     test('1.x parameters still work through the deprecated forwarders', () {
-      // ignore: deprecated_member_use_from_same_package
       final tilted = plan(
+        // ignore: deprecated_member_use_from_same_package
         const MarketingFrame(layout: FrameLayout.tilted, tilt: -12),
       );
       expect(
