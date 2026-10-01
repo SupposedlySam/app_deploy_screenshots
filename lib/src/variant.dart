@@ -1,4 +1,4 @@
-import 'dart:ui' show Brightness, Locale, Size;
+import 'dart:ui' show Brightness, Locale, Size, TextDirection;
 
 import 'package:flutter/foundation.dart';
 
@@ -152,6 +152,20 @@ final class ScreenshotContext {
 
   /// The brightness being rendered.
   Brightness get brightness => device.brightness;
+
+  /// The direction [locale] is written in.
+  TextDirection get textDirection => directionOf(locale);
+
+  /// The direction [locale] is written in: right to left for Arabic,
+  /// Hebrew, Persian, Urdu, Pashto, Yiddish, Sorani Kurdish, Dhivehi and
+  /// Sindhi. Not part of the public API.
+  @internal
+  static TextDirection directionOf(Locale locale) =>
+      const {
+        'ar', 'he', 'fa', 'ur', 'ps', 'yi', 'ckb', 'dv', 'sd', //
+      }.contains(locale.languageCode)
+      ? TextDirection.rtl
+      : TextDirection.ltr;
 
   /// `01_` for order 1, or empty without an order.
   String get orderPrefix =>

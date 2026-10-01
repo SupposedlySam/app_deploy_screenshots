@@ -54,6 +54,18 @@ void main() {
       error = e;
     }
     expect(error, isA<StateError>(), reason: 'not captured');
+
+    captures.dispose();
+    expect(
+      () => captures.of(shot),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('disposed'),
+        ),
+      ),
+    );
   });
 
   testWidgets('DeviceMockup lays captured screens out in a widget slide', (

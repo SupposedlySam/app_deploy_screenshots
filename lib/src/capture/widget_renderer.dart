@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../setup/fonts.dart';
+import '../variant.dart';
 import 'image_primer.dart';
 
 /// Renders a widget into an image in its own pipeline, without touching the
@@ -72,7 +73,7 @@ class WidgetRenderer {
       // so set the direction from the locale. Real delegates already know
       // it for every locale, so they are left to decide.
       content = Directionality(
-        textDirection: directionOf(locale),
+        textDirection: ScreenshotContext.directionOf(locale),
         child: content,
       );
     }
@@ -195,12 +196,6 @@ class WidgetRenderer {
     image.dispose();
     return exact;
   }
-
-  /// Text direction for [locale].
-  static TextDirection directionOf(Locale locale) =>
-      const {'ar', 'he', 'fa', 'ur', 'ps', 'yi'}.contains(locale.languageCode)
-      ? TextDirection.rtl
-      : TextDirection.ltr;
 }
 
 /// Calls [onMount] when its subtree is first built: proof the widget is on

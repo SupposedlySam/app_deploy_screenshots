@@ -333,6 +333,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.phone,
   );
 
   /// Android Phone Screenshots - 9:16 aspect ratio
@@ -343,6 +344,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.phone,
   );
 
   /// Android phone, 18:9 portrait: 1080 × 2160 px.
@@ -355,6 +357,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.phone,
   );
 
   /// Android phone, 20:9 portrait: 1080 × 2400 px. Taller than Play's
@@ -368,6 +371,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.phone,
   );
 
   /// Android Tablet Screenshots - 16:10 aspect ratio
@@ -449,11 +453,20 @@ final class Device {
   /// `MarketingFrame` draws the screen. 0 means square corners.
   final double screenCornerRadius;
 
-  /// What kind of device this is. `OutputLayout.fastlane` files Android
-  /// screenshots by it (phone, 7" or 10" tablet, TV, Wear OS). Null: worked
-  /// out from [size], where 600 dp across is a tablet and a small square a
-  /// watch, so a TV or Chromebook needs it set.
+  /// What kind of device this is, or null to work it out from [size]; see
+  /// [effectiveType]. Set it for a TV or Chromebook, which size can't tell
+  /// from a tablet.
   final DeviceType? type;
+
+  /// [type], or, without one, the kind [size] suggests: a small square is
+  /// a watch, 600 dp or more across a tablet, anything else a phone.
+  /// `OutputLayout.fastlane` files Android screenshots by it.
+  DeviceType get effectiveType {
+    if (type case final type?) return type;
+    final shortest = size.shortestSide;
+    if (size.width == size.height && shortest < 400) return DeviceType.wear;
+    return shortest >= 600 ? DeviceType.tablet : DeviceType.phone;
+  }
 
   /// The size of a full-screen capture, in pixels.
   Size get pixelSize => size * devicePixelRatio;

@@ -58,14 +58,22 @@ final class Caption {
   /// Null centres the text.
   final TextAlign? textAlign;
 
-  /// Text direction. Null follows the screenshot's locale: right-to-left
-  /// for Arabic, Hebrew, Persian and Urdu.
+  /// Text direction. Null follows the screenshot's locale
+  /// (`ScreenshotContext.textDirection`).
   final TextDirection? textDirection;
 
   /// This caption's text in [shared]'s look: each style merged over
-  /// [shared]'s, and anything else left null taken from it. Text is never
-  /// inherited. Not part of the public API.
-  @internal
+  /// [shared]'s, and the emphasis, alignment and direction taken from it
+  /// where this caption leaves them null. Text is never inherited.
+  ///
+  /// `StoreListing` does this for every slide caption. With the static
+  /// methods, style captions once and pass each slide its words:
+  ///
+  /// ```dart
+  /// frame: brand.copyWith(
+  ///   caption: Caption(headline: 'Plan **together**').styledLike(brand.caption),
+  /// ),
+  /// ```
   Caption styledLike(Caption? shared) {
     if (shared == null) return this;
     TextStyle? merge(TextStyle? base, TextStyle? own) =>

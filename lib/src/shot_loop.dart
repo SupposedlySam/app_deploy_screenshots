@@ -1,7 +1,6 @@
 import 'package:flutter/painting.dart';
 
 import '../device.dart';
-import 'output/output_layout.dart';
 import 'output/report.dart';
 import 'variant.dart';
 
@@ -16,11 +15,9 @@ abstract final class ShotLoop {
     required ScreenshotSource source,
     required Size? Function(Device device) canvasFor,
     required Future<ScreenshotRecord> Function(ScreenshotContext context) shoot,
-    OutputLayout? output,
   }) async {
     assert(devices.isNotEmpty);
     assert(variants.isNotEmpty);
-    output?.check(devices, variants);
     assert(order == null || order > 0, 'order starts at 1');
     return [
       for (final device in devices)

@@ -51,7 +51,7 @@ export 'src/frame/frame_layout.dart' show FrameLayout;
 export 'src/frame/caption.dart' show Caption, CaptionEmphasis;
 export 'src/frame/marketing_frame.dart'
     show ScreenshotFrame, MarketingFrame, FrameBackground;
-export 'src/output/output_layout.dart' show OutputLayout;
+export 'src/output/output_layout.dart' show OutputLayout, LocaleFolder;
 export 'src/output/report.dart' show ScreenshotRecord;
 export 'src/status_bar.dart' show StatusBarOverlay;
 export 'src/store_listing.dart' show StoreListing;
@@ -213,7 +213,7 @@ class AppDeployScreenshots {
     tester,
     name,
     devices: devices,
-    pathFor: (_layout(output, root)..check(devices, variants)).pathFor,
+    pathFor: _layout(output, root).pathsFor(devices, variants),
     finder: finder,
     customPump: customPump,
     deviceSetup: deviceSetup,
@@ -258,24 +258,26 @@ class AppDeployScreenshots {
     Size referenceSize = const Size(440, 956),
     Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
     ThemeData Function(ScreenshotContext shot)? theme,
-  }) => ShotLoop.run(
-    name,
-    output: output,
-    devices: devices,
-    variants: variants,
-    order: order,
-    source: ScreenshotSource.widget,
-    canvasFor: (device) => device.pixelSize,
-    shoot: (context) => _pipeline.widget(
-      tester,
-      context,
-      builder,
-      path: output.pathFor(context.device, context),
-      referenceSize: referenceSize,
-      localizationsDelegates: localizationsDelegates,
-      theme: theme?.call(context),
-    ),
-  );
+  }) {
+    final pathFor = output.pathsFor(devices, variants);
+    return ShotLoop.run(
+      name,
+      devices: devices,
+      variants: variants,
+      order: order,
+      source: ScreenshotSource.widget,
+      canvasFor: (device) => device.pixelSize,
+      shoot: (context) => _pipeline.widget(
+        tester,
+        context,
+        builder,
+        path: pathFor(context.device, context),
+        referenceSize: referenceSize,
+        localizationsDelegates: localizationsDelegates,
+        theme: theme?.call(context),
+      ),
+    );
+  }
 
   /// Writes [frame] as a slide with no device, on every store size: a hero
   /// or text poster made from the background, caption and decorations
@@ -306,33 +308,35 @@ class AppDeployScreenshots {
     OutputLayout output = const OutputLayout.folders(),
     List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
     int? order,
-  }) => ShotLoop.run(
-    name,
-    output: output,
-    devices: devices,
-    variants: variants,
-    order: order,
-    source: ScreenshotSource.poster,
-    canvasFor: (device) => device.pixelSize,
-    shoot: (context) {
-      final resolved = frame.resolve(context);
-      if (resolved == null) {
-        throw ArgumentError(
-          'posterForStores needs a frame, but the ScreenshotFrame.builder '
-          'returned null for ${context.device.name} ${context.variant}.',
+  }) {
+    final pathFor = output.pathsFor(devices, variants);
+    return ShotLoop.run(
+      name,
+      devices: devices,
+      variants: variants,
+      order: order,
+      source: ScreenshotSource.poster,
+      canvasFor: (device) => device.pixelSize,
+      shoot: (context) {
+        final resolved = frame.resolve(context);
+        if (resolved == null) {
+          throw ArgumentError(
+            'posterForStores needs a frame, but the ScreenshotFrame.builder '
+            'returned null for ${context.device.name} ${context.variant}.',
+          );
+        }
+        final shot = context.copyWith(
+          canvasSize: resolved.canvasSize ?? context.canvasSize,
         );
-      }
-      final shot = context.copyWith(
-        canvasSize: resolved.canvasSize ?? context.canvasSize,
-      );
-      return _pipeline.poster(
-        tester,
-        shot,
-        resolved,
-        path: output.pathFor(shot.device, shot),
-      );
-    },
-  );
+        return _pipeline.poster(
+          tester,
+          shot,
+          resolved,
+          path: pathFor(shot.device, shot),
+        );
+      },
+    );
+  }
 
   /// The layout in effect: [output], or folders under the deprecated
   /// [root].

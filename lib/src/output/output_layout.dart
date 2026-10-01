@@ -1,9 +1,19 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter/foundation.dart';
 
 import '../../device.dart';
 import '../variant.dart';
 import 'output_paths.dart';
 import 'store_locales.dart';
+
+/// The file a screenshot is written to.
+@internal
+typedef OutputPath = String Function(Device device, ScreenshotContext context);
+
+/// Picks the store folder for [locale] on [platform]'s store, overriding
+/// the built-in mapping. Return null to use the built-in one.
+typedef LocaleFolder = String? Function(Locale locale, DevicePlatform platform);
 
 /// Where the store methods write their files.
 ///
@@ -28,38 +38,44 @@ sealed class OutputLayout {
   /// * Android:
   ///   `<root>/metadata/android/<locale>/images/phoneScreenshots/01_home.png`,
   ///   with `sevenInchScreenshots`, `tenInchScreenshots`, `tvScreenshots`
-  ///   and `wearScreenshots` chosen by the device's `Device.type` (or its
-  ///   size, when it has none). supply has no Chromebook folder, so a
-  ///   Chromebook device is an error here: write those with
-  ///   [OutputLayout.folders] and upload them by hand.
+  ///   and `wearScreenshots` chosen by `Device.effectiveType`. supply has no
+  ///   Chromebook folder: write those with [OutputLayout.folders] and
+  ///   upload them in the Play Console.
   ///
   /// The locale folder is the tag each store uses for the variant's
   /// locale, which can differ: `Locale('ja', 'JP')` is `ja` on the App
   /// Store and `ja-JP` on Google Play, Hebrew `he` and `iw-IL`, simplified
-  /// Chinese `zh-Hans` and `zh-CN`. A locale a store has no folder for, or
-  /// one too vague to place (`Locale('en')`: US, UK, …?), is an error
-  /// before anything is captured. Screenshots without a locale go in
-  /// [defaultLocale]. Both tools upload in file name order, which the order
-  /// prefix sets.
+  /// Chinese `zh-Hans` and `zh-CN`. Screenshots whose variant has no locale
+  /// go in [defaultLocale]'s folder: set it to the language the app shows
+  /// them in. [localeFolder] overrides the mapping, for a language a store
+  /// added after this package's list (fastlane 2.240) or a folder of your
+  /// choosing.
   ///
-  /// Each folder replaces the store's current screenshots, so it is an error
-  /// for two variants to share a locale (light and dark of `fr-FR`, say):
-  /// both would upload. Write the other brightness to another root.
-  const factory OutputLayout.fastlane({String root, String defaultLocale}) =
-      _Fastlane;
+  /// Both tools upload every file in a folder, in file name order (which
+  /// the order prefix sets), replacing the store's current screenshots. So
+  /// before anything is captured, it is an error for:
+  ///
+  /// * a locale to have no folder on a store it is written for, or to be
+  ///   too vague to place (`Locale('en')`: US, UK, …?);
+  /// * two variants to share a folder (light and dark of `fr-FR`): both
+  ///   would upload. Write the other brightness to another root;
+  /// * two devices to share a slot (two Play phones, or two iPhones of one
+  ///   pixel size): one would replace the other.
+  const factory OutputLayout.fastlane({
+    String root,
+    Locale defaultLocale,
+    LocaleFolder? localeFolder,
+  }) = _Fastlane;
 
   /// The folder everything is written under. Pass the same layout to
   /// `writeReport`.
   String get root;
 
-  /// The file for [context] on [device]. Not part of the public API.
+  /// The path for each screenshot of [variants] on [devices], after
+  /// checking this layout can hold them all; throws `ArgumentError` if it
+  /// can't. Not part of the public API.
   @internal
-  String pathFor(Device device, ScreenshotContext context);
-
-  /// Throws if this layout can't hold [variants] on [devices], before
-  /// anything is captured. Not part of the public API.
-  @internal
-  void check(List<Device> devices, List<ScreenshotVariant> variants) {}
+  OutputPath pathsFor(List<Device> devices, List<ScreenshotVariant> variants);
 }
 
 final class _Folders extends OutputLayout {
@@ -69,8 +85,8 @@ final class _Folders extends OutputLayout {
   final String root;
 
   @override
-  String pathFor(Device device, ScreenshotContext context) =>
-      OutputPaths.store(root, device, context);
+  OutputPath pathsFor(List<Device> devices, List<ScreenshotVariant> variants) =>
+      (device, context) => OutputPaths.store(root, device, context);
 
   @override
   bool operator ==(Object other) => other is _Folders && other.root == root;
@@ -80,110 +96,130 @@ final class _Folders extends OutputLayout {
 }
 
 final class _Fastlane extends OutputLayout {
-  const _Fastlane({this.root = 'fastlane', this.defaultLocale = 'en-US'});
+  const _Fastlane({
+    this.root = 'fastlane',
+    this.defaultLocale = const Locale('en', 'US'),
+    this.localeFolder,
+  });
 
   @override
   final String root;
 
-  /// Locale folder for screenshots whose variant sets none.
-  final String defaultLocale;
+  final Locale defaultLocale;
+  final LocaleFolder? localeFolder;
 
   @override
-  String pathFor(Device device, ScreenshotContext context) {
-    final locale = _folder(context.variant, device.platform);
+  OutputPath pathsFor(List<Device> devices, List<ScreenshotVariant> variants) {
+    for (final platform in {for (final d in devices) d.platform}) {
+      _oneEach(
+        'variant',
+        variants,
+        (v) => _folder(v.locale ?? defaultLocale, platform),
+        'fastlane uploads every file there as another screenshot. Use one '
+            'variant per locale, and write the others (dark mode, say) to '
+            'OutputLayout.folders() or another root.',
+      );
+    }
+    _oneEach(
+      'device',
+      devices,
+      (d) => switch (d.platform) {
+        DevicePlatform.ios =>
+          'App Store slot for ${d.pixelSize.width.round()} × '
+              '${d.pixelSize.height.round()} px',
+        DevicePlatform.android => supplyFolder(d),
+      },
+      'one would replace or join the other in that upload slot. Write the '
+          'others with OutputLayout.folders().',
+    );
+    return _path;
+  }
+
+  /// Throws if two of [items] share a [slot].
+  static void _oneEach<T>(
+    String what,
+    List<T> items,
+    String Function(T item) slot,
+    String why,
+  ) {
+    final bySlot = <String, List<T>>{};
+    for (final item in items) {
+      (bySlot[slot(item)] ??= []).add(item);
+    }
+    for (final MapEntry(key: name, value: shared) in bySlot.entries) {
+      if (shared.length > 1) {
+        throw ArgumentError(
+          'With OutputLayout.fastlane(), the ${what}s '
+          '${shared.map((s) => s is Device ? s.name : '$s').join(' and ')} '
+          'would all go to the $name folder, and $why',
+        );
+      }
+    }
+  }
+
+  String _path(Device device, ScreenshotContext context) {
+    final locale = _folder(
+      context.variant.locale ?? defaultLocale,
+      device.platform,
+    );
     // The locale becomes the folder, so only the brightness stays in the
     // name; the order prefix leads, because both tools sort by name.
     final brightness = context.variant.brightness;
     final stem =
         '${context.orderPrefix}${context.name}'
         '${brightness == null ? '' : '.${brightness.name}'}';
-    if (device.platform == DevicePlatform.ios) {
-      return '$root/screenshots/$locale/${stem}_${device.name}.png';
-    }
-    return '$root/metadata/android/$locale/images/'
-        '${androidFolder(device)}/$stem.png';
+    return switch (device.platform) {
+      DevicePlatform.ios =>
+        '$root/screenshots/$locale/${stem}_${device.name}.png',
+      DevicePlatform.android =>
+        '$root/metadata/android/$locale/images/'
+            '${supplyFolder(device)}/$stem.png',
+    };
   }
 
-  @override
-  void check(List<Device> devices, List<ScreenshotVariant> variants) {
-    for (final device in devices) {
-      if (device.platform == DevicePlatform.android &&
-          device.type == DeviceType.chromebook) {
-        throw ArgumentError(
-          'fastlane supply has no Chromebook screenshot folder, so '
-          '${device.name} can\'t be written with OutputLayout.fastlane(). '
-          'Capture it with OutputLayout.folders() and upload it in the Play '
-          'Console.',
-        );
-      }
-    }
-    for (final platform in {for (final d in devices) d.platform}) {
-      final byFolder = <String, List<ScreenshotVariant>>{};
-      for (final v in variants) {
-        (byFolder[_folder(v, platform)] ??= []).add(v);
-      }
-      for (final MapEntry(key: folder, value: shared) in byFolder.entries) {
-        if (shared.length > 1) {
-          throw ArgumentError(
-            'With OutputLayout.fastlane(), $shared would all be written to '
-            'the $folder folder, and fastlane uploads every file there as '
-            'another screenshot. Use one variant per locale, and write the '
-            'others (dark mode, say) to OutputLayout.folders() or another '
-            'root.',
-          );
-        }
-      }
-    }
-  }
-
-  /// The locale folder for [variant] on [platform]'s store.
-  String _folder(ScreenshotVariant variant, DevicePlatform platform) {
-    final locale = variant.locale;
-    if (locale == null) return defaultLocale;
-    final tag = StoreLocales.tagFor(locale, platform);
+  /// The locale folder for [locale] on [platform]'s store.
+  String _folder(Locale locale, DevicePlatform platform) {
+    final tag =
+        localeFolder?.call(locale, platform) ??
+        StoreLocales.tagFor(locale, platform);
     if (tag != null) return tag;
-    final store = platform == DevicePlatform.ios
-        ? 'The App Store'
-        : 'Google Play';
     final options = StoreLocales.suggestionsFor(locale, platform);
     throw ArgumentError(
-      '$store has no screenshot folder for ${locale.toLanguageTag()}. '
-      '${options.isEmpty ? 'It does not list that language.' : 'For that language it has ${options.join(', ')}: use the Locale for one of those.'}',
+      '${StoreLocales.storeName(platform)} has no screenshot folder for '
+      '${locale.toLanguageTag()}. '
+      '${options.isEmpty ? 'It does not list that language' : 'For that language it has ${options.join(', ')}'}. '
+      'Use the Locale for one of those; or, if the store lists it, '
+      'name the folder with OutputLayout.fastlane(localeFolder: ...); or, '
+      'for a language only one store has, give that store its own listing '
+      '(devices: Device.playStore).',
     );
   }
 
-  /// supply's folder for [device]: from its `Device.type`, or, without
-  /// one, its size: square and small is a watch, 600 dp or more across a
-  /// tablet (720 dp or more a 10-inch).
+  /// supply's screenshot folder for [device].
   @visibleForTesting
-  static String androidFolder(Device device) {
-    final shortest = device.size.shortestSide;
-    final type =
-        device.type ??
-        switch (shortest) {
-          _ when device.size.width == device.size.height && shortest < 400 =>
-            DeviceType.wear,
-          >= 600 => DeviceType.tablet,
-          _ => DeviceType.phone,
-        };
-    return switch (type) {
-      DeviceType.phone => 'phoneScreenshots',
-      DeviceType.tablet =>
-        shortest >= 720 ? 'tenInchScreenshots' : 'sevenInchScreenshots',
-      DeviceType.tv => 'tvScreenshots',
-      DeviceType.wear => 'wearScreenshots',
-      DeviceType.chromebook => throw ArgumentError(
-        'fastlane supply has no Chromebook screenshot folder.',
-      ),
-    };
-  }
+  static String supplyFolder(Device device) => switch (device.effectiveType) {
+    DeviceType.phone => 'phoneScreenshots',
+    DeviceType.tablet =>
+      device.size.shortestSide >= 720
+          ? 'tenInchScreenshots'
+          : 'sevenInchScreenshots',
+    DeviceType.tv => 'tvScreenshots',
+    DeviceType.wear => 'wearScreenshots',
+    DeviceType.chromebook => throw ArgumentError(
+      'fastlane supply has no Chromebook screenshot folder, so '
+      '${device.name} can\'t be written with OutputLayout.fastlane(). '
+      'Capture it with OutputLayout.folders() and upload it in the Play '
+      'Console.',
+    ),
+  };
 
   @override
   bool operator ==(Object other) =>
       other is _Fastlane &&
       other.root == root &&
-      other.defaultLocale == defaultLocale;
+      other.defaultLocale == defaultLocale &&
+      other.localeFolder == localeFolder;
 
   @override
-  int get hashCode => Object.hash(root, defaultLocale);
+  int get hashCode => Object.hash(root, defaultLocale, localeFolder);
 }

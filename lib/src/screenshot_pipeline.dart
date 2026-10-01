@@ -73,7 +73,7 @@ class ScreenshotPipeline {
               ? null
               : request.statusBar,
           includeCanvasAnnotations: frame == null,
-          textDirection: WidgetRenderer.directionOf(context.locale),
+          textDirection: context.textDirection,
         );
         if (frame == null) return writer.write(context, screen, path: path);
 
@@ -85,7 +85,7 @@ class ScreenshotPipeline {
                 frame.canvasSize ??
                 Size(screen.width.toDouble(), screen.height.toDouble()),
             widgetImages: widgets,
-            textDirection: WidgetRenderer.directionOf(context.locale),
+            textDirection: context.textDirection,
             screen: FrameScreen(
               image: screen,
               captured: captured,
@@ -127,7 +127,7 @@ class ScreenshotPipeline {
           captured,
           statusBar: request.statusBar,
           includeCanvasAnnotations: true,
-          textDirection: WidgetRenderer.directionOf(context.locale),
+          textDirection: context.textDirection,
         ),
       ))!;
       return ScreenCapture(image, captured.device, captured.viewRect);
@@ -179,7 +179,7 @@ class ScreenshotPipeline {
   }) async {
     assert(names.length >= 2, 'a panorama spans at least two slides');
     assert(order > 0, 'order starts at 1');
-    output.check(devices, variants);
+    final pathFor = output.pathsFor(devices, variants);
     final records = <ScreenshotRecord>[];
     for (final device in devices) {
       for (final variant in variants) {
@@ -201,7 +201,7 @@ class ScreenshotPipeline {
             context,
             slices,
             builder,
-            paths: [for (final s in slices) output.pathFor(s.device, s)],
+            paths: [for (final s in slices) pathFor(s.device, s)],
             referenceSize: referenceSize,
             localizationsDelegates: localizationsDelegates,
             theme: theme?.call(context),
@@ -332,7 +332,7 @@ class ScreenshotPipeline {
           frame: frame,
           canvasSize: canvas,
           widgetImages: widgets,
-          textDirection: WidgetRenderer.directionOf(context.locale),
+          textDirection: context.textDirection,
         );
         return writer.write(
           context,

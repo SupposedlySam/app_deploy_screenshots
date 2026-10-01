@@ -63,9 +63,8 @@ final class StoreListing {
   }) : assert(devices.isNotEmpty),
        assert(variants.isNotEmpty),
        assert(firstOrder > 0, 'order starts at 1'),
-       _next = firstOrder {
-    output.check(devices, variants);
-  }
+       _next = firstOrder,
+       _pathFor = output.pathsFor(devices, variants);
 
   final WidgetTester tester;
   final List<Device> devices;
@@ -80,6 +79,7 @@ final class StoreListing {
 
   final _pipeline = ScreenshotPipeline(CaptureSession.shared);
   int _next;
+  final OutputPath _pathFor;
 
   /// The order the next slide will get.
   int get nextOrder => _next;
@@ -121,7 +121,7 @@ final class StoreListing {
           annotations: annotations,
           frame: design,
         ),
-        path: output.pathFor(context.device, context),
+        path: _pathFor(context.device, context),
       ),
     );
   }
@@ -151,7 +151,7 @@ final class StoreListing {
         tester,
         shot,
         resolved,
-        path: output.pathFor(shot.device, shot),
+        path: _pathFor(shot.device, shot),
       );
     });
   }
@@ -171,7 +171,7 @@ final class StoreListing {
       tester,
       context.copyWith(canvasSize: context.device.pixelSize),
       builder,
-      path: output.pathFor(context.device, context),
+      path: _pathFor(context.device, context),
       referenceSize: referenceSize,
       localizationsDelegates: localizationsDelegates,
       theme: theme?.call(context),

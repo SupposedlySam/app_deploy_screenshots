@@ -11,7 +11,7 @@ import '../../device.dart';
 /// Mapping here lets one `Locale('ja', 'JP')` land in the right folder on
 /// both, and an unknown one fail before anything is captured.
 abstract final class StoreLocales {
-  /// deliver's `FastlaneCore::Languages::ALL_LANGUAGES`.
+  /// deliver's `FastlaneCore::Languages::ALL_LANGUAGES`, fastlane 2.240.1.
   static const appStore = {
     'ar-SA', 'bn-BD', 'ca', 'cs', 'da', 'de-DE', 'el', 'en-AU', 'en-CA', //
     'en-GB', 'en-US', 'es-ES', 'es-MX', 'fi', 'fr-CA', 'fr-FR', 'gu-IN',
@@ -21,8 +21,8 @@ abstract final class StoreLocales {
     'ur-PK', 'vi', 'zh-Hans', 'zh-Hant',
   };
 
-  /// supply's `Supply::Languages::ALL_LANGUAGES`, with `-` for `_`: the
-  /// Play Console's listing languages.
+  /// supply's `Supply::Languages::ALL_LANGUAGES` (fastlane 2.240.1), with
+  /// `-` for `_`: the Play Console's listing languages.
   static const googlePlay = {
     'af', 'am', 'ar', 'az-AZ', 'be', 'bg', 'bn-BD', 'ca', 'cs-CZ', //
     'da-DK', 'de-DE', 'el-GR', 'en-AU', 'en-CA', 'en-GB', 'en-IN', 'en-SG',
@@ -39,9 +39,9 @@ abstract final class StoreLocales {
   /// The folder [platform]'s store uses for [locale], or null if it has
   /// none (or several equally likely, such as `en` on Play).
   static String? tagFor(Locale locale, DevicePlatform platform) {
-    final known = platform == DevicePlatform.ios ? appStore : googlePlay;
+    final known = knownFor(platform);
+    // Flutter's Locale already turns the legacy `iw` into `he`.
     final language = switch (locale.languageCode) {
-      'iw' => 'he',
       'nb' || 'nn' => 'no',
       'tl' => 'fil',
       final code => code,
@@ -75,17 +75,33 @@ abstract final class StoreLocales {
       _ => null,
     };
     if (traditional == null) return null;
-    if (platform == DevicePlatform.ios) {
-      return traditional ? 'zh-Hant' : 'zh-Hans';
-    }
-    if (!traditional) return 'zh-CN';
-    return locale.countryCode == 'HK' ? 'zh-HK' : 'zh-TW';
+    return switch (platform) {
+      DevicePlatform.ios => traditional ? 'zh-Hant' : 'zh-Hans',
+      DevicePlatform.android =>
+        !traditional
+            ? 'zh-CN'
+            : locale.countryCode == 'HK'
+            ? 'zh-HK'
+            : 'zh-TW',
+    };
   }
+
+  /// The folder names [platform]'s store accepts.
+  static Set<String> knownFor(DevicePlatform platform) => switch (platform) {
+    DevicePlatform.ios => appStore,
+    DevicePlatform.android => googlePlay,
+  };
+
+  /// The store [platform]'s screenshots go to, for messages.
+  static String storeName(DevicePlatform platform) => switch (platform) {
+    DevicePlatform.ios => 'The App Store',
+    DevicePlatform.android => 'Google Play',
+  };
 
   /// The tags [platform]'s store knows for [locale]'s language, for an
   /// error message.
   static List<String> suggestionsFor(Locale locale, DevicePlatform platform) {
-    final known = platform == DevicePlatform.ios ? appStore : googlePlay;
+    final known = knownFor(platform);
     final language = locale.languageCode;
     return [
       for (final t in known)

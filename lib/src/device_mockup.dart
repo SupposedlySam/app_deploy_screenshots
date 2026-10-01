@@ -32,10 +32,17 @@ final class ScreenCaptures {
   ScreenCaptures(this._screens);
 
   final Map<(String, ScreenshotVariant), ScreenCapture> _screens;
+  var _disposed = false;
 
   /// The screen for the device and variant [shot] describes: pass the
   /// `shot` a widget slide's builder receives.
   ScreenCapture of(ScreenshotContext shot) {
+    if (_disposed) {
+      throw StateError(
+        'These captures were disposed: capture the screens again, or call '
+        'dispose() after the last slide that uses them.',
+      );
+    }
     final screen = _screens[(shot.device.name, shot.variant)];
     if (screen == null) {
       throw StateError(
@@ -53,6 +60,7 @@ final class ScreenCaptures {
   /// Frees the images now, rather than when the test ends. Use it when a
   /// test captures many screens; the captures can't be used afterwards.
   void dispose() {
+    _disposed = true;
     for (final s in _screens.values) {
       s.image.dispose();
     }

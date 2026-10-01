@@ -307,7 +307,8 @@ final class MarketingFrame implements ScreenshotFrame {
   /// A copy with the given fields replaced, e.g. one slide's caption on a
   /// shared design: `brandFrame.copyWith(caption: Caption(headline: ...))`.
   /// A null argument keeps the current value, so `copyWith` can't remove a
-  /// caption; build a new `MarketingFrame` for that.
+  /// caption; build a new `MarketingFrame` for that. The caption is
+  /// replaced whole; `Caption.styledLike` keeps the shared caption's look.
   MarketingFrame copyWith({
     FrameBackground? background,
     Caption? caption,

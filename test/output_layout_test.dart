@@ -11,14 +11,14 @@ void main() {
   String path(
     OutputLayout layout,
     Device device, {
-    ScreenshotVariant? variant,
+    ScreenshotVariant variant = ScreenshotVariant.none,
     int? order,
-  }) => layout.pathFor(
+  }) => layout.pathsFor([device], [variant])(
     device,
     ScreenshotContext(
       name: 'inbox',
       device: device,
-      variant: variant ?? ScreenshotVariant.none,
+      variant: variant,
       order: order,
     ),
   );
@@ -75,7 +75,7 @@ void main() {
 
     test('refuses what supply would misfile, before capturing', () {
       expect(
-        () => fastlane.check(
+        () => fastlane.pathsFor(
           const [Device.playStoreChromebook],
           const [ScreenshotVariant.none],
         ),
@@ -89,7 +89,7 @@ void main() {
       );
       // Light and dark of one locale would both upload.
       expect(
-        () => fastlane.check(
+        () => fastlane.pathsFor(
           const [Device.playStorePhone],
           [ScreenshotVariant.light, ScreenshotVariant.dark],
         ),
@@ -102,7 +102,7 @@ void main() {
         ),
       );
       // The control: one variant per locale, on every store device.
-      fastlane.check(
+      fastlane.pathsFor(
         const [...Device.appStore, ...Device.playStore],
         ScreenshotVariant.matrix(
           brightnesses: const [Brightness.dark],
@@ -110,7 +110,7 @@ void main() {
         ),
       );
       // Folders hold anything.
-      const OutputLayout.folders().check(
+      const OutputLayout.folders().pathsFor(
         const [Device.playStoreChromebook],
         const [ScreenshotVariant.light, ScreenshotVariant.dark],
       );
@@ -150,7 +150,7 @@ void main() {
       );
       // Too vague: which English?
       expect(
-        () => fastlane.check(
+        () => fastlane.pathsFor(
           const [Device.appStoreIphone69],
           const [ScreenshotVariant(locale: Locale('en'))],
         ),
@@ -158,17 +158,83 @@ void main() {
       );
       // Play has Indian English; the App Store doesn't.
       const indian = [ScreenshotVariant(locale: Locale('en', 'IN'))];
-      fastlane.check(const [Device.playStorePhone], indian);
+      fastlane.pathsFor(const [Device.playStorePhone], indian);
       expect(
-        () => fastlane.check(const [Device.appStoreIphone69], indian),
+        () => fastlane.pathsFor(const [Device.appStoreIphone69], indian),
         fails('The App Store has no screenshot folder for en-IN'),
       );
       expect(
-        () => fastlane.check(
+        () => fastlane.pathsFor(
           const [Device.playStorePhone],
           const [ScreenshotVariant(locale: Locale('tlh'))],
         ),
         fails('does not list that language'),
+      );
+    });
+
+    test('refuses two devices in one upload slot', () {
+      // Two Play phones would write the same phoneScreenshots/01_home.png.
+      expect(
+        () => fastlane.pathsFor(
+          const [Device.playStorePhone, Device.playStorePhoneTall],
+          const [ScreenshotVariant.none],
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('play_store_phone and play_store_phone_tall'),
+              contains('phoneScreenshots'),
+            ),
+          ),
+        ),
+      );
+      // Two iPhones of one pixel size: deliver would put both in one slot.
+      expect(
+        () => fastlane.pathsFor(
+          [Device.appStoreIphone69, Device.appStoreIphone69.dark()],
+          const [ScreenshotVariant.none],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('maps the default locale per store, and can be overridden', () {
+      const japanese = OutputLayout.fastlane(
+        root: 'fl',
+        defaultLocale: Locale('ja', 'JP'),
+      );
+      expect(path(japanese, Device.appStoreIphone69).split('/')[2], 'ja');
+      expect(path(japanese, Device.playStorePhone).split('/')[3], 'ja-JP');
+
+      // A Mexican Spanish app: Play has no es-MX, so name its folder.
+      final mexican = OutputLayout.fastlane(
+        root: 'fl',
+        localeFolder: (locale, platform) =>
+            locale == const Locale('es', 'MX') &&
+                platform == DevicePlatform.android
+            ? 'es-419'
+            : null,
+      );
+      const variant = ScreenshotVariant(locale: Locale('es', 'MX'));
+      expect(
+        path(mexican, Device.playStorePhone, variant: variant).split('/')[3],
+        'es-419',
+      );
+      expect(
+        path(mexican, Device.appStoreIphone69, variant: variant).split('/')[2],
+        'es-MX',
+      );
+      expect(
+        () => path(fastlane, Device.playStorePhone, variant: variant),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('localeFolder'),
+          ),
+        ),
       );
     });
 
