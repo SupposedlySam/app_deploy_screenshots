@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
-import 'package:app_deploy_screenshots/src/output/output_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
