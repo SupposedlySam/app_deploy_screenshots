@@ -28,7 +28,7 @@ abstract final class AnnotationPainter {
           spotlights.add((s, r.rect));
         case final Callout c:
           callouts.add((c, r.rect));
-        case MagnifierInset():
+        case MagnifierInset() || Lift():
           break; // canvas level
       }
     }
@@ -61,6 +61,8 @@ abstract final class AnnotationPainter {
   }) {
     for (final r in captured.annotations) {
       switch (r.annotation) {
+        case final Lift lift:
+          _paintLift(canvas, lift, r.rect, captured, placement);
         case final MagnifierInset m:
           _paintMagnifier(canvas, m, r.rect, captured, placement, canvasSize);
         case Spotlight() || Callout():
@@ -130,6 +132,54 @@ void _paintCallout(Canvas canvas, Size view, Callout c, Rect target) {
   canvas.drawShadow(path, const Color(0xFF000000), 6, false);
   canvas.drawPath(path, Paint()..color = c.color);
   text.paint(canvas, bubble.outerRect.topLeft + Offset(pad.left, pad.top));
+}
+
+void _paintLift(
+  Canvas canvas,
+  Lift lift,
+  Rect target,
+  CapturedScreen captured,
+  ScreenPlacement placement,
+) {
+  final region = lift.padding.inflateRect(target);
+  final src = Rect.fromPoints(
+    captured.viewToImage(region.topLeft),
+    captured.viewToImage(region.bottomRight),
+  );
+  final perPoint = placement.canvasPerPoint * lift.scale;
+  final local = Rect.fromCenter(
+    center: Offset.zero,
+    width: region.width * perPoint,
+    height: region.height * perPoint,
+  );
+  final shape = RRect.fromRectAndRadius(
+    local,
+    Radius.circular(lift.radius * perPoint),
+  );
+  final centre = placement.viewToCanvas(region.center);
+
+  // In place: centred where the widget is, turned with the device.
+  canvas
+    ..save()
+    ..translate(centre.dx, centre.dy)
+    ..rotate(placement.angle);
+  if (lift.elevation > 0) {
+    canvas.drawShadow(
+      Path()..addRRect(shape),
+      const Color(0xFF000000),
+      lift.elevation * placement.canvasPerPoint,
+      false,
+    );
+  }
+  canvas
+    ..clipRRect(shape)
+    ..drawImageRect(
+      captured.image,
+      src,
+      local,
+      Paint()..filterQuality = FilterQuality.high,
+    )
+    ..restore();
 }
 
 void _paintMagnifier(

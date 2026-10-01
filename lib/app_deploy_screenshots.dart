@@ -26,7 +26,8 @@ export 'src/annotations.dart'
         Callout,
         CalloutPlacement,
         MagnifierInset,
-        MagnifierShape;
+        MagnifierShape,
+        Lift;
 export 'src/capture/screen_capturer.dart' show CustomPump, DeviceSetup;
 export 'src/frame/device_style.dart'
     show

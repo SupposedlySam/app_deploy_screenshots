@@ -54,6 +54,36 @@ class DecodedPng {
     );
   }
 
+  /// Centre of mass of the pixels that satisfy [test], or null if none do.
+  Offset? centroid(bool Function(Color) test, {int step = 2}) {
+    var sx = 0.0, sy = 0.0, n = 0;
+    for (var y = 0; y < height; y += step) {
+      for (var x = 0; x < width; x += step) {
+        if (test(pixel(x, y))) {
+          sx += x;
+          sy += y;
+          n++;
+        }
+      }
+    }
+    return n == 0 ? null : Offset(sx / n, sy / n);
+  }
+
+  /// Bounding box of the pixels that satisfy [test], or null if none do.
+  Rect? bounds(bool Function(Color) test, {int step = 1}) {
+    double? l, t, r, b;
+    for (var y = 0; y < height; y += step) {
+      for (var x = 0; x < width; x += step) {
+        if (!test(pixel(x, y))) continue;
+        l = l == null || x < l ? x.toDouble() : l;
+        r = r == null || x > r ? x.toDouble() : r;
+        t ??= y.toDouble();
+        b = y.toDouble();
+      }
+    }
+    return l == null ? null : Rect.fromLTRB(l, t!, r!, b!);
+  }
+
   /// Fraction of pixels in [rect] (image pixels) that satisfy [test].
   double fraction(Rect rect, bool Function(Color) test, {int step = 4}) {
     var hit = 0, total = 0;

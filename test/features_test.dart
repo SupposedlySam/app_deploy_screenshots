@@ -330,6 +330,78 @@ void main() {
       expect(ratio, inInclusiveRange(3.5, 4.5));
     });
 
+    testWidgets('Lift enlarges the target in place', (tester) async {
+      await tester.pumpWidget(const _Blocks());
+      final plain = await shoot(tester, 'lift_none');
+      final png = await shoot(
+        tester,
+        'lift',
+        annotations: [Lift(find.byKey(_Blocks.blue), scale: 1.2, elevation: 0)],
+      );
+      final all = Rect.fromLTWH(
+        0,
+        0,
+        png.width.toDouble(),
+        png.height.toDouble(),
+      );
+      final ratio =
+          png.fraction(all, isBlue, step: 2) /
+          plain.fraction(all, isBlue, step: 2);
+      expect(ratio, closeTo(1.44, 0.08), reason: '1.2 x 1.2');
+      // In place: the box's centre doesn't move.
+      expect(png.centroid(isBlue)!, offsetNear(plain.centroid(isBlue)!, 3));
+    });
+
+    testWidgets('Lift turns with a tilted device and stays on the widget', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const _Blocks());
+      const frame = MarketingFrame(
+        layout: FrameLayout.bleed(angle: -8),
+        device: DeviceStyle.screenOnly(shadow: false),
+      );
+      final png = await shoot(
+        tester,
+        'lift_tilted',
+        // Large enough to cover the original box, so the bounds below
+        // measure only the lifted piece.
+        annotations: [Lift(find.byKey(_Blocks.blue), scale: 1.3, elevation: 0)],
+        frame: frame,
+      );
+      // Where the geometry puts the blue box's centre on the canvas.
+      final placement = FrameGeometry.plan(
+        frame: frame,
+        canvasSize: phone.pixelSize,
+        screen: ScreenSize(
+          imageSize: phone.pixelSize,
+          viewRect: Offset.zero & phone.size,
+        ),
+        captionHeight: 0,
+      ).screen!;
+      final expected = placement.viewToCanvas(
+        const Rect.fromLTWH(40, 200, 100, 60).center,
+      );
+      expect(png.centroid(isBlue)!, offsetNear(expected, 6));
+      // Turned with the device: the top edge of the lifted box slopes.
+      // Between the quarter and three-quarter columns of a 130 pt wide box
+      // rotated 8 degrees it shifts by 65 * tan(8) = 9.1 pt; upright, 0.
+      final pt = placement.canvasPerPoint;
+      final box = png.bounds(isBlue)!;
+      double topAt(double x) {
+        for (var y = box.top.toInt(); y < box.bottom; y++) {
+          if (isBlue(png.pixel(x.toInt(), y))) return y.toDouble();
+        }
+        fail('no blue in column $x');
+      }
+
+      final slope =
+          (topAt(box.left + box.width * 0.25) -
+                  topAt(box.left + box.width * 0.75))
+              .abs() /
+          pt;
+      expect(slope, closeTo(9.1, 2));
+    });
+
     testWidgets('a finder that matches nothing throws instead of skipping', (
       tester,
     ) async {
@@ -830,5 +902,11 @@ void main() {
     });
   });
 }
+
+Matcher offsetNear(Offset expected, double tolerance) => isA<Offset>().having(
+  (o) => (o - expected).distance,
+  'distance from $expected',
+  lessThan(tolerance),
+);
 
 bool isWhiteish(Color c) => c.r > 0.75 && c.g > 0.75 && c.b > 0.75;

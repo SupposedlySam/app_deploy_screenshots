@@ -72,6 +72,36 @@ class Callout extends ScreenshotAnnotation {
   final double maxWidth;
 }
 
+/// Lifts [target] out of the screen: the same pixels, drawn in place a
+/// little larger with a drop shadow, so a card or row seems to pop off the
+/// device. The most common way top store listings point at a feature.
+///
+/// Inside a `MarketingFrame` the lifted widget is drawn on the canvas, so it
+/// can extend past the device's edges, and it turns with a tilted device.
+final class Lift extends ScreenshotAnnotation {
+  const Lift(
+    super.target, {
+    this.scale = 1.08,
+    this.radius = 12,
+    this.padding = EdgeInsets.zero,
+    this.elevation = 16,
+  }) : assert(scale > 0),
+       assert(elevation >= 0);
+
+  /// How much larger than on screen. 1 keeps its size and only adds the
+  /// shadow.
+  final double scale;
+
+  /// Corner radius of the lifted piece, in logical points.
+  final double radius;
+
+  /// Extra area around the target to lift with it, in logical points.
+  final EdgeInsets padding;
+
+  /// Shadow depth, in logical points. 0 for no shadow.
+  final double elevation;
+}
+
 /// The shape of a [MagnifierInset] inset.
 enum MagnifierShape { circle, roundedRect }
 
