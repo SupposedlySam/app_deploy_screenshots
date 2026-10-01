@@ -358,7 +358,7 @@ void main() {
       await tester.pumpWidget(const _Blocks());
       const frame = MarketingFrame(
         layout: FrameLayout.bleed(angle: -8),
-        device: DeviceStyle.screenOnly(shadow: false),
+        device: DeviceStyle.screenOnly(shadow: null),
       );
       final png = await shoot(
         tester,
@@ -435,7 +435,7 @@ void main() {
             headline: 'Headline',
             headlineStyle: TextStyle(color: Color(0xFFFFFFFF)),
           ),
-          device: DeviceStyle.screenOnly(shadow: false),
+          device: DeviceStyle.screenOnly(shadow: null),
         ),
       );
 
@@ -584,7 +584,7 @@ void main() {
         'style_fade',
         const MarketingFrame(
           background: FrameBackground.solid(background),
-          device: DeviceStyle(fadeOut: 0.4, shadow: false),
+          device: DeviceStyle(fadeOut: 0.4, shadow: null),
         ),
       );
       final w = png.width.toDouble();
@@ -640,7 +640,7 @@ void main() {
             'bg_blur_$blur',
             frame: MarketingFrame(
               background: FrameBackground.image(halves, blur: blur),
-              device: const DeviceStyle.screenOnly(shadow: false),
+              device: const DeviceStyle.screenOnly(shadow: null),
             ),
           );
         }

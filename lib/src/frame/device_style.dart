@@ -24,35 +24,37 @@ final class DeviceStyle {
     this.cutout = ScreenCutout.none,
     this.outline,
     this.glow,
-    this.shadow = true,
+    this.shadow = const DeviceShadow(),
     this.crop = ScreenCrop.none,
     this.fadeOut = 0,
   }) : assert(fadeOut >= 0 && fadeOut <= 1);
 
-  /// The screen alone, with rounded corners and a shadow, and no bezel.
+  /// The screen alone: no bezel by default. Every option is still
+  /// available, e.g. `DeviceStyle.screenOnly(cutout: ScreenCutout.island)`.
   const DeviceStyle.screenOnly({
+    this.bezel,
     this.cornerRadius,
+    this.cutout = ScreenCutout.none,
     this.outline,
     this.glow,
-    this.shadow = true,
+    this.shadow = const DeviceShadow(),
     this.crop = ScreenCrop.none,
     this.fadeOut = 0,
-  }) : bezel = null,
-       cutout = ScreenCutout.none,
-       assert(fadeOut >= 0 && fadeOut <= 1);
+  }) : assert(fadeOut >= 0 && fadeOut <= 1);
 
   /// A bezel with the device's camera cutout (Dynamic Island, notch or
-  /// punch-hole, chosen from the device), for a closer likeness to the phone.
+  /// punch-hole, chosen from the device), for a closer likeness to the
+  /// phone. Every option is still available.
   const DeviceStyle.detailed({
     this.bezel = const DeviceBezel(),
     this.cornerRadius,
+    this.cutout = ScreenCutout.auto,
     this.outline,
     this.glow,
-    this.shadow = true,
+    this.shadow = const DeviceShadow(),
     this.crop = ScreenCrop.none,
     this.fadeOut = 0,
-  }) : cutout = ScreenCutout.auto,
-       assert(fadeOut >= 0 && fadeOut <= 1);
+  }) : assert(fadeOut >= 0 && fadeOut <= 1);
 
   /// The frame around the screen, or null for none.
   final DeviceBezel? bezel;
@@ -70,8 +72,8 @@ final class DeviceStyle {
   /// A coloured glow around the device.
   final DeviceGlow? glow;
 
-  /// A soft shadow under the device.
-  final bool shadow;
+  /// The shadow under the device, or null for none.
+  final DeviceShadow? shadow;
 
   /// Part of the screenshot to leave out, e.g. the status bar.
   final ScreenCrop crop;
@@ -122,6 +124,34 @@ final class DeviceBezel {
 
   @override
   int get hashCode => Object.hash(color, width);
+}
+
+/// A soft shadow under the device.
+@immutable
+final class DeviceShadow {
+  const DeviceShadow({
+    this.color = const Color(0x40000000),
+    this.blur = 18,
+    this.offset = 12,
+  });
+
+  final Color color;
+
+  /// Blur radius, in caption points.
+  final double blur;
+
+  /// How far below the device the shadow falls, in caption points.
+  final double offset;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DeviceShadow &&
+      other.color == color &&
+      other.blur == blur &&
+      other.offset == offset;
+
+  @override
+  int get hashCode => Object.hash(color, blur, offset);
 }
 
 /// A line around the device.
@@ -209,11 +239,14 @@ enum CutoutShape { none, island, notch, punchHole }
 @immutable
 final class ScreenCrop {
   const ScreenCrop._({
-    this.top = 0,
-    this.bottom = 0,
-    this.statusBar = false,
-    this.homeIndicator = false,
-  });
+    double top = 0,
+    double bottom = 0,
+    bool statusBar = false,
+    bool homeIndicator = false,
+  }) : _top = top,
+       _bottom = bottom,
+       _statusBar = statusBar,
+       _homeIndicator = homeIndicator;
 
   /// Show the whole screenshot.
   static const ScreenCrop none = ScreenCrop._();
@@ -232,10 +265,10 @@ final class ScreenCrop {
   const ScreenCrop.points({double top = 0, double bottom = 0})
     : this._(top: top, bottom: bottom);
 
-  final double top;
-  final double bottom;
-  final bool statusBar;
-  final bool homeIndicator;
+  final double _top;
+  final double _bottom;
+  final bool _statusBar;
+  final bool _homeIndicator;
 
   /// The part of a screenshot of [imageSize] pixels, covering [viewRect] of
   /// [device]'s view, to show. Not part of the public API.
@@ -243,10 +276,10 @@ final class ScreenCrop {
   Rect sourceRectFor(Device device, Size imageSize, Rect viewRect) {
     final perPoint = imageSize.width / viewRect.width;
     // Insets apply only where the capture includes that edge of the screen.
-    final insetTop = statusBar && viewRect.top <= 0 ? device.safeArea.top : 0;
-    final insetBottom = homeIndicator ? device.safeArea.bottom : 0;
-    final cutTop = ((top + insetTop) * perPoint).clamp(0, imageSize.height);
-    final cutBottom = ((bottom + insetBottom) * perPoint).clamp(
+    final insetTop = _statusBar && viewRect.top <= 0 ? device.safeArea.top : 0;
+    final insetBottom = _homeIndicator ? device.safeArea.bottom : 0;
+    final cutTop = ((_top + insetTop) * perPoint).clamp(0, imageSize.height);
+    final cutBottom = ((_bottom + insetBottom) * perPoint).clamp(
       0,
       imageSize.height - cutTop,
     );
@@ -262,16 +295,16 @@ final class ScreenCrop {
   /// part of the public API.
   @internal
   bool hidesStatusBarOn(Device device) =>
-      statusBar || (device.safeArea.top > 0 && top >= device.safeArea.top);
+      _statusBar || (device.safeArea.top > 0 && _top >= device.safeArea.top);
 
   @override
   bool operator ==(Object other) =>
       other is ScreenCrop &&
-      other.top == top &&
-      other.bottom == bottom &&
-      other.statusBar == statusBar &&
-      other.homeIndicator == homeIndicator;
+      other._top == _top &&
+      other._bottom == _bottom &&
+      other._statusBar == _statusBar &&
+      other._homeIndicator == _homeIndicator;
 
   @override
-  int get hashCode => Object.hash(top, bottom, statusBar, homeIndicator);
+  int get hashCode => Object.hash(_top, _bottom, _statusBar, _homeIndicator);
 }

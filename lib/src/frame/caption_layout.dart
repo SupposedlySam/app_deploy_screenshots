@@ -12,7 +12,12 @@ class CaptionLayout {
 
   /// Lays out [frame]'s caption across [width] canvas pixels, at [unit]
   /// canvas pixels per layout point.
-  factory CaptionLayout.of(MarketingFrame frame, double width, double unit) {
+  factory CaptionLayout.of(
+    MarketingFrame frame,
+    double width,
+    double unit, {
+    TextDirection textDirection = TextDirection.ltr,
+  }) {
     final caption = frame.caption;
     if (caption == null) return CaptionLayout._(const [], unit);
     final ink = frame.background.brightness == Brightness.light
@@ -50,7 +55,7 @@ class CaptionLayout {
         unit: unit,
         width: width,
         textAlign: caption.textAlign,
-        textDirection: caption.textDirection,
+        textDirection: caption.textDirection ?? textDirection,
       );
     }
 

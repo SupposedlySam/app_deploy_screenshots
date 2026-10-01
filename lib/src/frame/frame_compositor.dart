@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'frame_resolution.dart';
 import 'package:flutter/painting.dart';
 
 import 'annotation_painter.dart';
@@ -95,12 +96,14 @@ class FrameCompositor {
     required Size canvasSize,
     FrameScreen? screen,
     Map<WidgetDecoration, ui.Image> widgetImages = const {},
+    TextDirection textDirection = TextDirection.ltr,
   }) async {
     final unit = FrameGeometry.unitFor(frame, canvasSize);
     final caption = CaptionLayout.of(
       frame,
       FrameGeometry.captionWidthFor(frame, canvasSize),
       unit,
+      textDirection: textDirection,
     );
     final plan = FrameGeometry.plan(
       frame: frame,
@@ -181,6 +184,9 @@ class _DecorationLayer implements FrameLayer {
             Paint()..filterQuality = FilterQuality.high,
           );
           decoded.dispose();
+          if (d.countsAsText) {
+            context.decorationTextArea += size.width * size.height;
+          }
         case final WidgetDecoration widget:
           final rendered = context.widgetImages[widget];
           if (rendered == null) {
@@ -263,12 +269,12 @@ class _DeviceLayer implements FrameLayer {
           ),
       );
     }
-    if (style.shadow) {
+    if (style.shadow case final shadow?) {
       canvas.drawRRect(
-        outer.shift(Offset(0, 12 * unit)),
+        outer.shift(Offset(0, shadow.offset * unit)),
         Paint()
-          ..color = const Color(0x40000000)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 18 * unit),
+          ..color = shadow.color
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadow.blur * unit),
       );
     }
     if (style.bezel case final bezel?) {

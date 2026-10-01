@@ -115,6 +115,23 @@ class ScreenshotContext {
   /// and posters).
   final Size? canvasSize;
 
+  /// A copy with the given fields replaced.
+  ScreenshotContext copyWith({
+    String? name,
+    Device? device,
+    ScreenshotVariant? variant,
+    int? order,
+    Size? canvasSize,
+    ScreenshotSource? source,
+  }) => ScreenshotContext(
+    name: name ?? this.name,
+    device: device ?? this.device,
+    variant: variant ?? this.variant,
+    order: order ?? this.order,
+    canvasSize: canvasSize ?? this.canvasSize,
+    source: source ?? this.source,
+  );
+
   /// What the slide is made from.
   final ScreenshotSource source;
 

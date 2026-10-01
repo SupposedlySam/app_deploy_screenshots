@@ -26,6 +26,7 @@ sealed class FrameDecoration {
     required this.alignment,
     required this.offset,
     required this.behindDevice,
+    required this.countsAsText,
   });
 
   /// An encoded image (PNG, JPEG, …), [width] caption points wide, its
@@ -36,14 +37,13 @@ sealed class FrameDecoration {
     Alignment alignment,
     Offset offset,
     bool behindDevice,
+    bool countsAsText,
   }) = ImageDecoration;
 
   /// Any widget, rendered at [size] caption points. It gets a `MediaQuery`,
-  /// directionality and the default localizations, like a widget slide.
-  ///
-  /// Set [countsAsText] when it mostly holds text (a badge, a quote), so it
-  /// counts toward the caption's share of the image in the Google Play
-  /// check.
+  /// text direction from the locale, the default (English) localizations
+  /// and a `Theme` in the screenshot's brightness. Animations are drawn at
+  /// their first frame.
   const factory FrameDecoration.widget(
     Widget child, {
     required Size size,
@@ -61,6 +61,11 @@ sealed class FrameDecoration {
 
   /// Drawn under the device instead of over it.
   final bool behindDevice;
+
+  /// Set when it mostly holds text (a rating badge, a wordmark, a quote),
+  /// so its area counts toward the caption's share of the image in the
+  /// Google Play check.
+  final bool countsAsText;
 }
 
 /// See [FrameDecoration.image].
@@ -71,6 +76,7 @@ final class ImageDecoration extends FrameDecoration {
     super.alignment = Alignment.topCenter,
     super.offset = Offset.zero,
     super.behindDevice = false,
+    super.countsAsText = false,
   });
 
   final Uint8List bytes;
@@ -87,14 +93,11 @@ final class WidgetDecoration extends FrameDecoration {
     super.alignment = Alignment.topCenter,
     super.offset = Offset.zero,
     super.behindDevice = false,
-    this.countsAsText = false,
+    super.countsAsText = false,
   });
 
   final Widget child;
 
   /// Size in caption points.
   final Size size;
-
-  /// Whether its area counts as text in the caption coverage check.
-  final bool countsAsText;
 }

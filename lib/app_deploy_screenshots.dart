@@ -10,7 +10,7 @@ import 'package:app_deploy_screenshots/src/capture/capture_request.dart';
 import 'package:app_deploy_screenshots/src/capture/screen_capturer.dart';
 import 'package:app_deploy_screenshots/src/screenshot_pipeline.dart';
 
-export 'src/screenshot_pipeline.dart' show SlideBuilder;
+export 'src/screenshot_pipeline.dart' show WidgetSlideBuilder;
 import 'package:app_deploy_screenshots/src/frame/marketing_frame.dart';
 import 'package:app_deploy_screenshots/src/output/output_paths.dart';
 import 'package:app_deploy_screenshots/src/output/report.dart';
@@ -35,21 +35,14 @@ export 'src/frame/device_style.dart'
     show
         DeviceStyle,
         DeviceBezel,
+        DeviceShadow,
         DeviceOutline,
         DeviceGlow,
         ScreenCutout,
         ScreenCrop;
-export 'src/frame/frame_decoration.dart'
-    show FrameDecoration, ImageDecoration, WidgetDecoration;
+export 'src/frame/frame_decoration.dart' show FrameDecoration;
 export 'src/frame/frame_layout.dart' show FrameLayout;
-export 'src/frame/caption.dart'
-    show
-        Caption,
-        CaptionEmphasis,
-        EmphasisColor,
-        EmphasisStyle,
-        EmphasisMarker,
-        EmphasisGradient;
+export 'src/frame/caption.dart' show Caption, CaptionEmphasis;
 export 'src/frame/marketing_frame.dart'
     show ScreenshotFrame, MarketingFrame, FrameBackground;
 export 'src/output/png_encoder.dart' show encodeOpaquePng;
@@ -253,7 +246,7 @@ class AppDeployScreenshots {
   static Future<List<ScreenshotRecord>> widgetForStores(
     WidgetTester tester,
     String name, {
-    required SlideBuilder builder,
+    required WidgetSlideBuilder builder,
     List<Device> devices = const [...Device.appStore, ...Device.playStore],
     String root = defaultRoot,
     List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
@@ -323,12 +316,7 @@ class AppDeployScreenshots {
           'returned null for ${context.device.name} ${context.variant}.',
         );
       }
-      final shot = ScreenshotContext(
-        name: context.name,
-        device: context.device,
-        variant: context.variant,
-        order: context.order,
-        source: context.source,
+      final shot = context.copyWith(
         canvasSize: resolved.canvasSize ?? context.canvasSize,
       );
       return _pipeline.poster(

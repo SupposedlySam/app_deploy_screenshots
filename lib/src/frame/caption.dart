@@ -32,7 +32,7 @@ final class Caption {
     this.subheadlineStyle,
     this.footnoteStyle,
     this.textAlign = TextAlign.center,
-    this.textDirection = TextDirection.ltr,
+    this.textDirection,
   });
 
   final String headline;
@@ -57,8 +57,9 @@ final class Caption {
 
   final TextAlign textAlign;
 
-  /// Set to [TextDirection.rtl] for right-to-left locales.
-  final TextDirection textDirection;
+  /// Text direction. Null follows the screenshot's locale: right-to-left
+  /// for Arabic, Hebrew, Persian and Urdu.
+  final TextDirection? textDirection;
 }
 
 /// How emphasised caption text (between `**` markers) is drawn.

@@ -232,7 +232,7 @@ void main() {
         fileName: '$root/deco_$behind.png',
         customPump: (t) => t.pump(),
         frame: MarketingFrame(
-          device: const DeviceStyle.screenOnly(shadow: false),
+          device: const DeviceStyle.screenOnly(shadow: null),
           decorations: [
             // Centred on the canvas, which the device covers.
             FrameDecoration.image(

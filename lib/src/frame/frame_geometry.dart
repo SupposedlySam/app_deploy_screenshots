@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'frame_resolution.dart';
 import 'package:flutter/painting.dart';
 
 import 'marketing_frame.dart';

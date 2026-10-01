@@ -25,7 +25,7 @@ const frames = <MarketingFrame>[
       cutout: ScreenCutout.island,
       outline: DeviceOutline(),
       glow: DeviceGlow(color: Color(0x806366F1)),
-      shadow: false,
+      shadow: null,
       crop: ScreenCrop.belowStatusBar,
       fadeOut: 0.3,
     ),

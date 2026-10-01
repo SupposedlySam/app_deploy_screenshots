@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'frame/frame_resolution.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -20,7 +21,7 @@ import 'variant.dart';
 
 /// Builds a widget slide. [shot] says which device, locale and brightness
 /// it is for.
-typedef SlideBuilder =
+typedef WidgetSlideBuilder =
     Widget Function(BuildContext context, ScreenshotContext shot);
 
 /// The order of the stages: capture, overlays, frame, write. The public
@@ -115,7 +116,7 @@ class ScreenshotPipeline {
   Future<ScreenshotRecord> widget(
     WidgetTester tester,
     ScreenshotContext context,
-    SlideBuilder builder, {
+    WidgetSlideBuilder builder, {
     required String path,
     Size referenceSize = const Size(440, 956),
     Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
@@ -162,6 +163,7 @@ class ScreenshotPipeline {
           frame: frame,
           canvasSize: canvas,
           widgetImages: widgets,
+          textDirection: WidgetRenderer.directionOf(context.locale),
         );
         return writer.write(
           context,

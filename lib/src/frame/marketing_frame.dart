@@ -304,25 +304,6 @@ final class MarketingFrame implements ScreenshotFrame {
   @Deprecated('Use device: DeviceStyle(shadow: ...). Removed in 3.0.')
   final bool shadow;
 
-  /// The device style in effect: [device], or one built from the deprecated
-  /// 1.x parameters.
-  // ignore: deprecated_member_use_from_same_package
-  DeviceStyle get effectiveDevice =>
-      device ??
-      DeviceStyle(
-        // ignore: deprecated_member_use_from_same_package
-        bezel: bezel,
-        // ignore: deprecated_member_use_from_same_package
-        cornerRadius: screenCornerRadius,
-        // ignore: deprecated_member_use_from_same_package
-        shadow: shadow,
-      );
-
-  /// The tilt in effect for [layout], in degrees.
-  double get effectiveAngle =>
-      // ignore: deprecated_member_use_from_same_package
-      layout.spec.angle ?? tilt;
-
   @override
   MarketingFrame resolve(ScreenshotContext context) => this;
 }
