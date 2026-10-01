@@ -118,15 +118,41 @@ abstract final class FontSetup {
       _loadBundled('NotoEmoji.ttf', emojiFontFamily);
 
   /// Font family the package draws its own text in (captions, the status
-  /// bar clock, callouts): Roboto as a variable font, so every weight is a
-  /// real weight. The package's static Roboto has only the regular weight,
-  /// and the test renderer only fakes bold, faintly.
+  /// bar clock, callouts) and widget slides default to: Roboto in real
+  /// weights. The test renderer only fakes bold, faintly, so without these
+  /// files every weight renders as regular.
   static const String textFontFamily = 'AppDeployScreenshotsRoboto';
 
-  /// Loads [textFontFamily]. Read from the package's `lib/` like the emoji
-  /// font, so it is never bundled into apps.
-  static Future<void> loadTextFont() =>
-      _loadBundled('Roboto-Variable.ttf', textFontFamily);
+  /// The Roboto weights shipped in the package's `lib/`.
+  static const List<String> robotoFiles = [
+    'roboto/Roboto-Light.ttf',
+    'roboto/Roboto-Regular.ttf',
+    'roboto/Roboto-Italic.ttf',
+    'roboto/Roboto-Medium.ttf',
+    'roboto/Roboto-Bold.ttf',
+    'roboto/Roboto-Black.ttf',
+  ];
+
+  /// Loads the bundled Roboto weights as [textFontFamily], and adds them to
+  /// `Roboto`, Material's default font, so an app's own bold and medium
+  /// text renders at its real weight too. Read from the package's `lib/`
+  /// like the emoji font, so they are never bundled into apps.
+  static Future<void> loadTextFont() async {
+    final lib = _packageLibDirectory();
+    final bytes = [
+      for (final f in robotoFiles)
+        ByteData.sublistView(
+          await File('${lib.path}/src/fonts/$f').readAsBytes(),
+        ),
+    ];
+    for (final family in [textFontFamily, 'Roboto']) {
+      final loader = FontLoader(family);
+      for (final b in bytes) {
+        loader.addFont(Future.value(b));
+      }
+      await loader.load();
+    }
+  }
 
   static Future<void> _loadBundled(String file, String family) async {
     final lib = _packageLibDirectory();

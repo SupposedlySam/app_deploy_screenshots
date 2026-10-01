@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../setup/fonts.dart';
 import 'image_primer.dart';
 
 /// Renders a widget into an image in its own pipeline, without touching the
@@ -56,7 +57,14 @@ class WidgetRenderer {
     var mounted = false;
 
     Widget content = Theme(
-      data: theme ?? ThemeData(brightness: brightness),
+      // The bundled Roboto, in real weights, unless the caller brings a
+      // theme of their own.
+      data:
+          theme ??
+          ThemeData(
+            brightness: brightness,
+            fontFamily: FontSetup.textFontFamily,
+          ),
       child: _MountSignal(onMount: () => mounted = true, child: widget),
     );
     if (localizationsDelegates == null) {

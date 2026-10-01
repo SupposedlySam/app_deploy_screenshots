@@ -930,6 +930,46 @@ void main() {
     });
   });
 
+  testWidgets("the app's own Roboto text renders at its real weight", (
+    tester,
+  ) async {
+    Future<double> ink(FontWeight weight) async {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ColoredBox(
+            color: const Color(0xFFFFFFFF),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                'Unread conversation',
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 40,
+                  fontWeight: weight,
+                  color: const Color(0xFF000000),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final png = await shoot(tester, 'weight_${weight.value}');
+      return png.fraction(
+        const Rect.fromLTWH(0, 0, 1320, 180),
+        isDark,
+        step: 1,
+      );
+    }
+
+    // Measured with only Roboto Regular bundled: w700 drew about 14% more
+    // ink than w400 (a faint synthetic bold). Real Bold draws ~40% more.
+    expect(
+      await ink(FontWeight.w700) / await ink(FontWeight.w400),
+      greaterThan(1.3),
+    );
+  });
+
   group('writeReport', () {
     testWidgets('warns about Play captions over the coverage limit only', (
       tester,
