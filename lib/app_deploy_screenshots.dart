@@ -9,9 +9,11 @@ import 'package:app_deploy_screenshots/src/capture/capture_session.dart';
 import 'package:app_deploy_screenshots/src/capture/capture_request.dart';
 import 'package:app_deploy_screenshots/src/capture/screen_capturer.dart';
 import 'package:app_deploy_screenshots/src/screenshot_pipeline.dart';
+import 'package:app_deploy_screenshots/src/shot_loop.dart';
 
 export 'src/screenshot_pipeline.dart' show WidgetSlideBuilder;
 import 'package:app_deploy_screenshots/src/frame/marketing_frame.dart';
+import 'package:app_deploy_screenshots/src/output/manifest_report.dart';
 import 'package:app_deploy_screenshots/src/output/output_layout.dart';
 import 'package:app_deploy_screenshots/src/output/output_paths.dart';
 import 'package:app_deploy_screenshots/src/output/report.dart';
@@ -51,6 +53,7 @@ export 'src/output/png_encoder.dart' show encodeOpaquePng;
 export 'src/output/report.dart' show ScreenshotRecord;
 export 'src/setup/fonts.dart' show TestAssetBundle;
 export 'src/status_bar.dart' show StatusBarOverlay;
+export 'src/store_listing.dart' show StoreListing;
 export 'src/variant.dart'
     show ScreenshotVariant, ScreenshotContext, ScreenshotSource;
 
@@ -260,7 +263,7 @@ class AppDeployScreenshots {
     Size referenceSize = const Size(440, 956),
     Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
     ThemeData Function(ScreenshotContext shot)? theme,
-  }) => _forEachShot(
+  }) => ShotLoop.run(
     name,
     devices: devices,
     variants: variants,
@@ -307,7 +310,7 @@ class AppDeployScreenshots {
     OutputLayout output = const OutputLayout.folders(),
     List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
     int? order,
-  }) => _forEachShot(
+  }) => ShotLoop.run(
     name,
     devices: devices,
     variants: variants,
@@ -345,36 +348,6 @@ class AppDeployScreenshots {
         (root == null
             ? const OutputLayout.folders()
             : OutputLayout.folders(root));
-  }
-
-  /// Runs [shoot] once per device and variant, in the same order as the
-  /// screenshot methods.
-  static Future<List<ScreenshotRecord>> _forEachShot(
-    String name, {
-    required List<Device> devices,
-    required List<ScreenshotVariant> variants,
-    required int? order,
-    required ScreenshotSource source,
-    required Size Function(Device device) canvasFor,
-    required Future<ScreenshotRecord> Function(ScreenshotContext context) shoot,
-  }) async {
-    assert(devices.isNotEmpty);
-    assert(variants.isNotEmpty);
-    assert(order == null || order > 0, 'order starts at 1');
-    return [
-      for (final device in devices)
-        for (final variant in variants)
-          await shoot(
-            ScreenshotContext(
-              name: name,
-              device: variant.applyTo(device),
-              variant: variant,
-              order: order,
-              source: source,
-              canvasSize: canvasFor(device),
-            ),
-          ),
-    ];
   }
 
   /// The directory screenshots are written to unless a path says otherwise.
@@ -565,25 +538,15 @@ class AppDeployScreenshots {
       output == null || root == null,
       'Pass either root or output, not both.',
     );
-    final folder = output?.root ?? root ?? defaultRoot;
-    Future<void> write() async {
-      if (manifest) await Manifest.write(folder, _session.records);
-      if (contactSheets) await ContactSheets.write(folder, columns: columns);
-    }
-
-    await (tester == null ? write() : tester.runAsync(write));
-
-    final limit = playCaptionCoverageLimit;
-    if (limit == null || !manifest) return const [];
-    final over = Manifest.captionCoverageOver(folder, limit);
-    for (final (path, coverage) in over) {
-      debugPrint(
-        '⚠️ app_deploy_screenshots: $path caption covers '
-        '${(coverage * 100).toStringAsFixed(1)}% of the image '
-        '(Google Play guidance: ${(limit * 100).round()}% or less)',
-      );
-    }
-    return over;
+    return ManifestReport.write(
+      root: output?.root ?? root ?? defaultRoot,
+      session: _session,
+      tester: tester,
+      manifest: manifest,
+      contactSheets: contactSheets,
+      columns: columns,
+      playCaptionCoverageLimit: playCaptionCoverageLimit,
+    );
   }
 
   /// Render the closest [RepaintBoundary] of the [element] into an image.

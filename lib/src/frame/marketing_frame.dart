@@ -304,6 +304,37 @@ final class MarketingFrame implements ScreenshotFrame {
   @Deprecated('Use device: DeviceStyle(shadow: ...). Removed in 3.0.')
   final bool shadow;
 
+  /// A copy with the given fields replaced, e.g. one slide's caption on a
+  /// shared design: `brandFrame.copyWith(caption: Caption(headline: ...))`.
+  MarketingFrame copyWith({
+    FrameBackground? background,
+    Caption? caption,
+    FrameLayout? layout,
+    DeviceStyle? device,
+    Size? canvasSize,
+    Size? referenceSize,
+    List<FrameDecoration>? decorations,
+  }) => MarketingFrame(
+    background: background ?? this.background,
+    caption: caption ?? this.caption,
+    layout: layout ?? this.layout,
+    device: device ?? this.device,
+    canvasSize: canvasSize ?? this.canvasSize,
+    referenceSize: referenceSize ?? this.referenceSize,
+    decorations: decorations ?? this.decorations,
+    // ignore: deprecated_member_use_from_same_package
+    bezel: this.device == null && device == null ? bezel : const DeviceBezel(),
+    // ignore: deprecated_member_use_from_same_package
+    screenCornerRadius: this.device == null && device == null
+        // ignore: deprecated_member_use_from_same_package
+        ? screenCornerRadius
+        : null,
+    // ignore: deprecated_member_use_from_same_package
+    tilt: tilt,
+    // ignore: deprecated_member_use_from_same_package
+    shadow: this.device == null && device == null ? shadow : true,
+  );
+
   @override
   MarketingFrame resolve(ScreenshotContext context) => this;
 }
