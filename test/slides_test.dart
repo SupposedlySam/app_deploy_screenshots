@@ -42,7 +42,7 @@ void main() {
       final records = await AppDeployScreenshots.widgetForStores(
         tester,
         'hero',
-        root: '$root/hero',
+        output: OutputLayout.folders('$root/hero'),
         order: 1,
         builder: (context, shot) => const ColoredBox(color: Color(0xFFFF0000)),
       );
@@ -77,7 +77,7 @@ void main() {
       final records = await AppDeployScreenshots.widgetForStores(
         tester,
         'themed',
-        root: '$root/themed',
+        output: OutputLayout.folders('$root/themed'),
         devices: const [Device.appStoreIphone69],
         variants: [
           ScreenshotVariant.dark,
@@ -105,7 +105,7 @@ void main() {
       final records = await AppDeployScreenshots.posterForStores(
         tester,
         'welcome',
-        root: '$root/poster',
+        output: OutputLayout.folders('$root/poster'),
         order: 1,
         devices: const [Device.appStoreIphone69, Device.playStorePhone],
         frame: MarketingFrame(
@@ -159,7 +159,7 @@ void main() {
       }
 
       await AppDeployScreenshots.writeReport(
-        root: '$root/poster',
+        output: OutputLayout.folders('$root/poster'),
         tester: tester,
         contactSheets: false,
       );
@@ -178,7 +178,7 @@ void main() {
         final r = await AppDeployScreenshots.posterForStores(
           tester,
           'cover_$counts',
-          root: '$root/coverage',
+          output: OutputLayout.folders('$root/coverage'),
           devices: const [Device.playStorePhone],
           frame: MarketingFrame(
             caption: const Caption(headline: 'Headline'),
@@ -206,7 +206,7 @@ void main() {
         await AppDeployScreenshots.posterForStores(
           tester,
           'none',
-          root: '$root/none',
+          output: OutputLayout.folders('$root/none'),
           devices: const [Device.playStorePhone],
           frame: ScreenshotFrame.builder((_) => null),
         );

@@ -171,7 +171,7 @@ void main() {
       final records = await AppDeployScreenshots.forStores(
         tester,
         'home',
-        root: '$root/stores',
+        output: OutputLayout.folders('$root/stores'),
         order: 3,
         customPump: fixedPump,
       );
@@ -947,7 +947,7 @@ void main() {
         await AppDeployScreenshots.forStores(
           tester,
           name,
-          root: reportRoot,
+          output: OutputLayout.folders(reportRoot),
           devices: const [Device.playStorePhone, Device.appStoreIphone69],
           customPump: fixedPump,
           frame: frame(size),
@@ -955,7 +955,7 @@ void main() {
       }
 
       final over = await AppDeployScreenshots.writeReport(
-        root: reportRoot,
+        output: OutputLayout.folders(reportRoot),
         tester: tester,
         contactSheets: false,
       );
@@ -984,7 +984,7 @@ void main() {
         await AppDeployScreenshots.forStores(
           tester,
           name,
-          root: reportRoot,
+          output: OutputLayout.folders(reportRoot),
           order: order,
           devices: const [Device.playStorePhone, Device.appStoreIpad13],
           customPump: fixedPump,

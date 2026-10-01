@@ -12,6 +12,7 @@ import 'package:app_deploy_screenshots/src/screenshot_pipeline.dart';
 
 export 'src/screenshot_pipeline.dart' show WidgetSlideBuilder;
 import 'package:app_deploy_screenshots/src/frame/marketing_frame.dart';
+import 'package:app_deploy_screenshots/src/output/output_layout.dart';
 import 'package:app_deploy_screenshots/src/output/output_paths.dart';
 import 'package:app_deploy_screenshots/src/output/report.dart';
 import 'package:app_deploy_screenshots/src/setup/channel_mocks.dart';
@@ -45,6 +46,7 @@ export 'src/frame/frame_layout.dart' show FrameLayout;
 export 'src/frame/caption.dart' show Caption, CaptionEmphasis;
 export 'src/frame/marketing_frame.dart'
     show ScreenshotFrame, MarketingFrame, FrameBackground;
+export 'src/output/output_layout.dart' show OutputLayout;
 export 'src/output/png_encoder.dart' show encodeOpaquePng;
 export 'src/output/report.dart' show ScreenshotRecord;
 export 'src/setup/fonts.dart' show TestAssetBundle;
@@ -188,15 +190,19 @@ class AppDeployScreenshots {
   );
 
   /// Captures [name] at the exact pixel sizes App Store Connect and Google
-  /// Play ask for ([Device.appStore] and [Device.playStore]), into
-  /// `<root>/<platform>/<device>/`, one folder per upload slot.
+  /// Play ask for ([Device.appStore] and [Device.playStore]). By default
+  /// into `app_deploy_screenshots/<platform>/<device>/`, one folder per
+  /// upload slot; [output] chooses another layout, such as
+  /// `OutputLayout.fastlane()`.
   ///
   /// See [byDevices] for the other parameters.
   static Future<List<ScreenshotRecord>> forStores(
     WidgetTester tester,
     String name, {
     List<Device> devices = const [...Device.appStore, ...Device.playStore],
-    String root = defaultRoot,
+    OutputLayout? output,
+    @Deprecated('Use output: OutputLayout.folders(root). Removed in 3.0.')
+    String? root,
     Finder? finder,
     CustomPump? customPump,
     DeviceSetup? deviceSetup,
@@ -209,7 +215,7 @@ class AppDeployScreenshots {
     tester,
     name,
     devices: devices,
-    pathFor: (device, context) => OutputPaths.store(root, device, context),
+    pathFor: _layout(output, root).pathFor,
     finder: finder,
     customPump: customPump,
     deviceSetup: deviceSetup,
@@ -248,7 +254,7 @@ class AppDeployScreenshots {
     String name, {
     required WidgetSlideBuilder builder,
     List<Device> devices = const [...Device.appStore, ...Device.playStore],
-    String root = defaultRoot,
+    OutputLayout output = const OutputLayout.folders(),
     List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
     int? order,
     Size referenceSize = const Size(440, 956),
@@ -265,7 +271,7 @@ class AppDeployScreenshots {
       tester,
       context,
       builder,
-      path: OutputPaths.store(root, context.device, context),
+      path: output.pathFor(context.device, context),
       referenceSize: referenceSize,
       localizationsDelegates: localizationsDelegates,
       theme: theme?.call(context),
@@ -298,7 +304,7 @@ class AppDeployScreenshots {
     String name, {
     required ScreenshotFrame frame,
     List<Device> devices = const [...Device.appStore, ...Device.playStore],
-    String root = defaultRoot,
+    OutputLayout output = const OutputLayout.folders(),
     List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
     int? order,
   }) => _forEachShot(
@@ -323,10 +329,23 @@ class AppDeployScreenshots {
         tester,
         shot,
         resolved,
-        path: OutputPaths.store(root, shot.device, shot),
+        path: output.pathFor(shot.device, shot),
       );
     },
   );
+
+  /// The layout in effect: [output], or folders under the deprecated
+  /// [root].
+  static OutputLayout _layout(OutputLayout? output, String? root) {
+    assert(
+      output == null || root == null,
+      'Pass output: OutputLayout.folders(root) instead of both.',
+    );
+    return output ??
+        (root == null
+            ? const OutputLayout.folders()
+            : OutputLayout.folders(root));
+  }
 
   /// Runs [shoot] once per device and variant, in the same order as the
   /// screenshot methods.
@@ -520,8 +539,9 @@ class AppDeployScreenshots {
     return records;
   }
 
-  /// Writes review material for everything under [root]: `manifest.json`
-  /// and one contact sheet per device folder in `_review/`.
+  /// Writes review material for everything under [root] (or [output]'s
+  /// folder): `manifest.json` and one contact sheet per folder of
+  /// screenshots in `_review/`.
   ///
   /// Also checks Google Play's guidance that text overlays cover no more than
   /// 20% of a screenshot. Every Play screenshot whose caption covers more
@@ -533,23 +553,29 @@ class AppDeployScreenshots {
   /// `tearDownAll`. Pass [tester] when calling inside a `testWidgets` body,
   /// so image work runs outside its fake-async zone.
   static Future<List<(String path, double coverage)>> writeReport({
-    String root = defaultRoot,
+    String? root,
+    OutputLayout? output,
     WidgetTester? tester,
     bool manifest = true,
     bool contactSheets = true,
     int columns = 5,
     double? playCaptionCoverageLimit = 0.2,
   }) async {
+    assert(
+      output == null || root == null,
+      'Pass either root or output, not both.',
+    );
+    final folder = output?.root ?? root ?? defaultRoot;
     Future<void> write() async {
-      if (manifest) await Manifest.write(root, _session.records);
-      if (contactSheets) await ContactSheets.write(root, columns: columns);
+      if (manifest) await Manifest.write(folder, _session.records);
+      if (contactSheets) await ContactSheets.write(folder, columns: columns);
     }
 
     await (tester == null ? write() : tester.runAsync(write));
 
     final limit = playCaptionCoverageLimit;
     if (limit == null || !manifest) return const [];
-    final over = Manifest.captionCoverageOver(root, limit);
+    final over = Manifest.captionCoverageOver(folder, limit);
     for (final (path, coverage) in over) {
       debugPrint(
         '⚠️ app_deploy_screenshots: $path caption covers '
