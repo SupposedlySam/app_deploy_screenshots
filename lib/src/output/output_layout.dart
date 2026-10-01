@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../device.dart';
 import '../variant.dart';
 import 'output_paths.dart';
+import 'store_locales.dart';
 
 /// Where the store methods write their files.
 ///
@@ -32,10 +33,14 @@ sealed class OutputLayout {
   ///   Chromebook device is an error here: write those with
   ///   [OutputLayout.folders] and upload them by hand.
   ///
-  /// The locale folder is the variant's locale as a language tag, or
-  /// [defaultLocale] for screenshots without one. Use full tags the stores
-  /// know, such as `Locale('fr', 'FR')` for `fr-FR`. Both tools upload in
-  /// file name order, which the order prefix sets.
+  /// The locale folder is the tag each store uses for the variant's
+  /// locale, which can differ: `Locale('ja', 'JP')` is `ja` on the App
+  /// Store and `ja-JP` on Google Play, Hebrew `he` and `iw-IL`, simplified
+  /// Chinese `zh-Hans` and `zh-CN`. A locale a store has no folder for, or
+  /// one too vague to place (`Locale('en')`: US, UK, …?), is an error
+  /// before anything is captured. Screenshots without a locale go in
+  /// [defaultLocale]. Both tools upload in file name order, which the order
+  /// prefix sets.
   ///
   /// Each folder replaces the store's current screenshots, so it is an error
   /// for two variants to share a locale (light and dark of `fr-FR`, say):
@@ -85,7 +90,7 @@ final class _Fastlane extends OutputLayout {
 
   @override
   String pathFor(Device device, ScreenshotContext context) {
-    final locale = context.variant.locale?.toLanguageTag() ?? defaultLocale;
+    final locale = _folder(context.variant, device.platform);
     // The locale becomes the folder, so only the brightness stays in the
     // name; the order prefix leads, because both tools sort by name.
     final brightness = context.variant.brightness;
@@ -112,20 +117,39 @@ final class _Fastlane extends OutputLayout {
         );
       }
     }
-    final byLocale = <String, List<ScreenshotVariant>>{};
-    for (final v in variants) {
-      (byLocale[v.locale?.toLanguageTag() ?? defaultLocale] ??= []).add(v);
-    }
-    for (final MapEntry(key: locale, value: shared) in byLocale.entries) {
-      if (shared.length > 1) {
-        throw ArgumentError(
-          'With OutputLayout.fastlane(), $shared would all be written to the '
-          '$locale folder, and fastlane uploads every file there as another '
-          'screenshot. Use one variant per locale, and write the others '
-          '(dark mode, say) to OutputLayout.folders() or another root.',
-        );
+    for (final platform in {for (final d in devices) d.platform}) {
+      final byFolder = <String, List<ScreenshotVariant>>{};
+      for (final v in variants) {
+        (byFolder[_folder(v, platform)] ??= []).add(v);
+      }
+      for (final MapEntry(key: folder, value: shared) in byFolder.entries) {
+        if (shared.length > 1) {
+          throw ArgumentError(
+            'With OutputLayout.fastlane(), $shared would all be written to '
+            'the $folder folder, and fastlane uploads every file there as '
+            'another screenshot. Use one variant per locale, and write the '
+            'others (dark mode, say) to OutputLayout.folders() or another '
+            'root.',
+          );
+        }
       }
     }
+  }
+
+  /// The locale folder for [variant] on [platform]'s store.
+  String _folder(ScreenshotVariant variant, DevicePlatform platform) {
+    final locale = variant.locale;
+    if (locale == null) return defaultLocale;
+    final tag = StoreLocales.tagFor(locale, platform);
+    if (tag != null) return tag;
+    final store = platform == DevicePlatform.ios
+        ? 'The App Store'
+        : 'Google Play';
+    final options = StoreLocales.suggestionsFor(locale, platform);
+    throw ArgumentError(
+      '$store has no screenshot folder for ${locale.toLanguageTag()}. '
+      '${options.isEmpty ? 'It does not list that language.' : 'For that language it has ${options.join(', ')}: use the Locale for one of those.'}',
+    );
   }
 
   /// supply's folder for [device]: from its `Device.type`, or, without

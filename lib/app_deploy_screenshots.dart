@@ -35,7 +35,8 @@ export 'src/annotations.dart'
         MagnifierShape,
         Lift;
 export 'src/capture/screen_capturer.dart' show CustomPump, DeviceSetup;
-export 'src/device_mockup.dart' show DeviceMockup, DeviceScreen, ScreenCaptures;
+export 'src/device_mockup.dart'
+    show DeviceMockup, ScreenCapture, ScreenCaptures;
 export 'src/frame/device_style.dart'
     show
         DeviceStyle,
@@ -356,7 +357,7 @@ class AppDeployScreenshots {
   /// ```dart
   /// await AppDeployScreenshots.panoramaForStores(
   ///   tester,
-  ///   names: ['plan', 'book', 'go'],
+  ///   ['plan', 'book', 'go'],
   ///   order: 2,
   ///   builder: (context, shot) => Stack(children: [
   ///     const Positioned.fill(child: BrandBackground()),
@@ -369,14 +370,18 @@ class AppDeployScreenshots {
   ///
   /// Layout is in points of [referenceSize] per slide, so the strip is
   /// `names.length * 440` points wide by default.
+  ///
+  /// [order] is required because a panorama takes `names.length` places in
+  /// the listing: number the slides around it to leave them free.
+  /// `StoreListing.panorama` counts them for you.
   static Future<List<ScreenshotRecord>> panoramaForStores(
-    WidgetTester tester, {
-    required List<String> names,
+    WidgetTester tester,
+    List<String> names, {
+    required int order,
     required WidgetSlideBuilder builder,
     List<Device> devices = const [...Device.appStore, ...Device.playStore],
     OutputLayout output = const OutputLayout.folders(),
     List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
-    int order = 1,
     Size referenceSize = const Size(440, 956),
     Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
     ThemeData Function(ScreenshotContext shot)? theme,
@@ -602,6 +607,10 @@ class AppDeployScreenshots {
   /// Call it once screenshots are written, e.g. at the end of a test or in
   /// `tearDownAll`. Pass [tester] when calling inside a `testWidgets` body,
   /// so image work runs outside its fake-async zone.
+  ///
+  /// [root] stays alongside [output] (unlike the store methods' deprecated
+  /// `root`) for screenshots written by [byDevices] or a custom
+  /// `fileNameBuilder`, which have no layout.
   static Future<List<(String path, double coverage)>> writeReport({
     String? root,
     OutputLayout? output,

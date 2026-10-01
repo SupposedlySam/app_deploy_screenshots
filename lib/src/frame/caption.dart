@@ -31,7 +31,7 @@ final class Caption {
     this.headlineStyle,
     this.subheadlineStyle,
     this.footnoteStyle,
-    this.textAlign = TextAlign.center,
+    this.textAlign,
     this.textDirection,
   });
 
@@ -55,11 +55,33 @@ final class Caption {
   /// Merged over 11pt Roboto, muted.
   final TextStyle? footnoteStyle;
 
-  final TextAlign textAlign;
+  /// Null centres the text.
+  final TextAlign? textAlign;
 
   /// Text direction. Null follows the screenshot's locale: right-to-left
   /// for Arabic, Hebrew, Persian and Urdu.
   final TextDirection? textDirection;
+
+  /// This caption's text in [shared]'s look: each style merged over
+  /// [shared]'s, and anything else left null taken from it. Text is never
+  /// inherited. Not part of the public API.
+  @internal
+  Caption styledLike(Caption? shared) {
+    if (shared == null) return this;
+    TextStyle? merge(TextStyle? base, TextStyle? own) =>
+        base?.merge(own) ?? own;
+    return Caption(
+      headline: headline,
+      subheadline: subheadline,
+      footnote: footnote,
+      emphasis: emphasis ?? shared.emphasis,
+      headlineStyle: merge(shared.headlineStyle, headlineStyle),
+      subheadlineStyle: merge(shared.subheadlineStyle, subheadlineStyle),
+      footnoteStyle: merge(shared.footnoteStyle, footnoteStyle),
+      textAlign: textAlign ?? shared.textAlign,
+      textDirection: textDirection ?? shared.textDirection,
+    );
+  }
 }
 
 /// How emphasised caption text (between `**` markers) is drawn.

@@ -42,11 +42,14 @@ import 'variant.dart';
 /// the order the stores show them. Everything set on the listing applies to
 /// every slide; pass it again on a slide to change it for that slide only.
 /// A slide's [caption] (or `captionFor`, for per-locale text) replaces the
-/// shared frame's caption, keeping the rest of its design.
+/// shared frame's caption text and keeps the rest of the design, including
+/// the shared caption's look: its styles are merged under the slide's, and
+/// its emphasis and alignment apply unless the slide sets its own. So a
+/// listing styles captions once and each slide passes only its words.
 ///
 /// It is the same pipeline as `AppDeployScreenshots.forStores`,
 /// `widgetForStores` and `posterForStores`, so the output is identical.
-class StoreListing {
+final class StoreListing {
   StoreListing(
     this.tester, {
     this.devices = const [...Device.appStore, ...Device.playStore],
@@ -69,7 +72,7 @@ class StoreListing {
   final List<ScreenshotVariant> variants;
   final OutputLayout output;
 
-  /// The shared design. A slide's caption replaces its caption.
+  /// The shared design. A slide's caption replaces its caption text.
   final ScreenshotFrame? frame;
   final StatusBarOverlay? statusBar;
   final CustomPump? customPump;
@@ -88,8 +91,8 @@ class StoreListing {
   /// Captures the app as it is now, framed with the shared design.
   ///
   /// [caption] (or [captionFor], given the device, locale and brightness)
-  /// replaces the shared frame's caption. [frame] replaces the whole
-  /// design for this slide; pass `MarketingFrame` subclasses or a
+  /// replaces the shared frame's caption text, styled like it. [frame]
+  /// replaces the whole design for this slide: a `MarketingFrame` or a
   /// `ScreenshotFrame.builder`. The other parameters default to the
   /// listing's.
   Future<List<ScreenshotRecord>> screenshot(
@@ -177,8 +180,8 @@ class StoreListing {
 
   /// A panorama across `names.length` consecutive slides. See
   /// `AppDeployScreenshots.panoramaForStores`.
-  Future<List<ScreenshotRecord>> panorama({
-    required List<String> names,
+  Future<List<ScreenshotRecord>> panorama(
+    List<String> names, {
     required WidgetSlideBuilder builder,
     Size referenceSize = const Size(440, 956),
     Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
@@ -277,7 +280,7 @@ class StoreListing {
     return ScreenshotFrame.builder((context) {
       final text = captionFor?.call(context) ?? caption;
       final base = design?.resolve(context) ?? const MarketingFrame();
-      return base.copyWith(caption: text);
+      return base.copyWith(caption: text?.styledLike(base.caption));
     });
   }
 }

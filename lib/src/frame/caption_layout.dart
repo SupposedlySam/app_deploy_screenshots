@@ -54,7 +54,7 @@ class CaptionLayout {
         emphasis,
         unit: unit,
         width: width,
-        textAlign: caption.textAlign,
+        textAlign: caption.textAlign ?? TextAlign.center,
         textDirection: caption.textDirection ?? textDirection,
       );
     }

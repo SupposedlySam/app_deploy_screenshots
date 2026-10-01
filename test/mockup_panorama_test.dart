@@ -108,7 +108,7 @@ void main() {
   ) async {
     final records = await AppDeployScreenshots.panoramaForStores(
       tester,
-      names: ['plan', 'book', 'go'],
+      ['plan', 'book', 'go'],
       order: 2,
       devices: devices,
       output: OutputLayout.folders(root),

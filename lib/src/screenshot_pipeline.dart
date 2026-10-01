@@ -115,7 +115,7 @@ class ScreenshotPipeline {
 
   /// Captures the app as [context] describes, with the status bar and every
   /// annotation drawn on the screen, and returns it instead of writing it.
-  Future<DeviceScreen> captureScreen(
+  Future<ScreenCapture> captureScreen(
     WidgetTester tester,
     ScreenshotContext context,
     CaptureRequest request,
@@ -130,7 +130,7 @@ class ScreenshotPipeline {
           textDirection: WidgetRenderer.directionOf(context.locale),
         ),
       ))!;
-      return DeviceScreen(image, captured.device, captured.viewRect);
+      return ScreenCapture(image, captured.device, captured.viewRect);
     } finally {
       captured.dispose();
     }
@@ -144,7 +144,7 @@ class ScreenshotPipeline {
     required List<ScreenshotVariant> variants,
     required CaptureRequest request,
   }) async {
-    final screens = <(String, ScreenshotVariant), DeviceScreen>{};
+    final screens = <(String, ScreenshotVariant), ScreenCapture>{};
     final captures = ScreenCaptures(screens);
     addTearDown(captures.dispose);
     for (final device in devices) {
@@ -297,8 +297,8 @@ class ScreenshotPipeline {
           );
           final picture = recorder.endRecording();
           final slice = await picture.toImage(
-            canvas.width.toInt(),
-            canvas.height.toInt(),
+            canvas.width.round(),
+            canvas.height.round(),
           );
           picture.dispose();
           records.add(

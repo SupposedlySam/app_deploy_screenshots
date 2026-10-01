@@ -119,6 +119,73 @@ void main() {
     },
   );
 
+  testWidgets('a panorama takes one place per slide in the order', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    final listing = StoreListing(
+      tester,
+      devices: const [Device.appStoreIphone69],
+      output: OutputLayout.folders('$root/panorama'),
+      frame: brand,
+      customPump: (t) => t.pump(),
+    );
+    await listing.poster('welcome');
+    await listing.panorama([
+      'plan',
+      'go',
+    ], builder: (_, _) => const ColoredBox(color: Color(0xFF00FF00)));
+    await listing.screenshot('home');
+    expect(listing.records.map((r) => r.path.split('/').last), [
+      '01_welcome.png',
+      '02_plan.png',
+      '03_go.png',
+      '04_home.png',
+    ]);
+  });
+
+  testWidgets('a slide caption keeps the shared caption look', (tester) async {
+    await pumpApp(tester);
+    bool isYellow(Color c) => c.r > 0.9 && c.g > 0.9 && c.b < 0.2;
+    final listing = StoreListing(
+      tester,
+      devices: const [Device.appStoreIphone69],
+      output: OutputLayout.folders('$root/inherit'),
+      frame: const MarketingFrame(
+        background: FrameBackground.solid(Color(0xFF0000FF)),
+        caption: Caption(
+          headline: 'Shared',
+          headlineStyle: TextStyle(color: Color(0xFFFFFF00), fontSize: 60),
+          textAlign: TextAlign.start,
+        ),
+      ),
+    );
+    final inherited = await listing.poster(
+      'inherited',
+      caption: const Caption(headline: 'Own words'),
+    );
+    final own = await listing.poster(
+      'own',
+      caption: const Caption(
+        headline: 'Own words',
+        headlineStyle: TextStyle(color: Color(0xFFFFFFFF)),
+      ),
+    );
+    final a = await DecodedPng.read(tester, inherited.single.path);
+    final b = await DecodedPng.read(tester, own.single.path);
+    final yellow = a.bounds(isYellow, step: 2);
+    expect(yellow, isNotNull, reason: 'shared colour');
+    // Shared start alignment and 60pt size: ink starts at the left margin
+    // and is far taller than the default 30pt.
+    expect(yellow!.left, lessThan(a.width * 0.15));
+    expect(yellow.height, greaterThan(60 * 3 * 0.5));
+    // The slide's own style is merged over the shared one: its colour wins,
+    // the shared size stays.
+    expect(b.bounds(isYellow, step: 2), isNull);
+    final white = b.bounds(isWhite, step: 2)!;
+    expect(white.height, closeTo(yellow.height, 6));
+  });
+
   testWidgets('writeReport writes the manifest for the listing output', (
     tester,
   ) async {

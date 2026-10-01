@@ -116,6 +116,62 @@ void main() {
       );
     });
 
+    test('names each locale folder the way that store does', () {
+      String folders(Locale locale) {
+        final variant = ScreenshotVariant(locale: locale);
+        final ios = path(fastlane, Device.appStoreIphone69, variant: variant);
+        final play = path(fastlane, Device.playStorePhone, variant: variant);
+        return '${ios.split('/')[2]} ${play.split('/')[3]}';
+      }
+
+      expect(folders(const Locale('fr', 'FR')), 'fr-FR fr-FR');
+      expect(folders(const Locale('ja', 'JP')), 'ja ja-JP');
+      expect(folders(const Locale('ja')), 'ja ja-JP');
+      expect(folders(const Locale('de')), 'de-DE de-DE');
+      expect(folders(const Locale('he', 'IL')), 'he iw-IL');
+      expect(folders(const Locale('nb', 'NO')), 'no no-NO');
+      expect(folders(const Locale('zh', 'CN')), 'zh-Hans zh-CN');
+      expect(
+        folders(
+          const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+        ),
+        'zh-Hant zh-TW',
+      );
+      expect(folders(const Locale('zh', 'HK')), 'zh-Hant zh-HK');
+    });
+
+    test('refuses a locale a store has no folder for', () {
+      Matcher fails(String message) => throwsA(
+        isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          contains(message),
+        ),
+      );
+      // Too vague: which English?
+      expect(
+        () => fastlane.check(
+          const [Device.appStoreIphone69],
+          const [ScreenshotVariant(locale: Locale('en'))],
+        ),
+        fails('en-AU, en-CA, en-GB, en-US'),
+      );
+      // Play has Indian English; the App Store doesn't.
+      const indian = [ScreenshotVariant(locale: Locale('en', 'IN'))];
+      fastlane.check(const [Device.playStorePhone], indian);
+      expect(
+        () => fastlane.check(const [Device.appStoreIphone69], indian),
+        fails('The App Store has no screenshot folder for en-IN'),
+      );
+      expect(
+        () => fastlane.check(
+          const [Device.playStorePhone],
+          const [ScreenshotVariant(locale: Locale('tlh'))],
+        ),
+        fails('does not list that language'),
+      );
+    });
+
     testWidgets('StoreListing checks its layout when it is made', (
       tester,
     ) async {

@@ -11,9 +11,9 @@ import 'variant.dart';
 
 /// One captured screen: the app as it looked on [device], with the status
 /// bar and annotations drawn. Put it in a [DeviceMockup].
-final class DeviceScreen {
+final class ScreenCapture {
   @internal
-  DeviceScreen(this.image, this.device, this.viewRect);
+  ScreenCapture(this.image, this.device, this.viewRect);
 
   /// The screenshot, in pixels.
   final ui.Image image;
@@ -31,11 +31,11 @@ final class ScreenCaptures {
   @internal
   ScreenCaptures(this._screens);
 
-  final Map<(String, ScreenshotVariant), DeviceScreen> _screens;
+  final Map<(String, ScreenshotVariant), ScreenCapture> _screens;
 
   /// The screen for the device and variant [shot] describes: pass the
   /// `shot` a widget slide's builder receives.
-  DeviceScreen of(ScreenshotContext shot) {
+  ScreenCapture of(ScreenshotContext shot) {
     final screen = _screens[(shot.device.name, shot.variant)];
     if (screen == null) {
       throw StateError(
@@ -48,9 +48,10 @@ final class ScreenCaptures {
   }
 
   /// Every capture, in capture order.
-  Iterable<DeviceScreen> get all => _screens.values;
+  Iterable<ScreenCapture> get all => _screens.values;
 
-  @internal
+  /// Frees the images now, rather than when the test ends. Use it when a
+  /// test captures many screens; the captures can't be used afterwards.
   void dispose() {
     for (final s in _screens.values) {
       s.image.dispose();
@@ -79,7 +80,11 @@ final class ScreenCaptures {
 /// );
 /// ```
 ///
-/// The device keeps its proportions and is as large as fits.
+/// The device keeps its proportions and is as large as its constraints
+/// allow. Give it bounded constraints (an `Expanded`, a `SizedBox`): with
+/// none, as in a `Row` without `Expanded`, it is drawn one logical pixel
+/// per point of the device's screen, which is usually larger than the
+/// slide.
 class DeviceMockup extends StatelessWidget {
   const DeviceMockup({
     super.key,
@@ -87,7 +92,7 @@ class DeviceMockup extends StatelessWidget {
     this.style = const DeviceStyle(),
   });
 
-  final DeviceScreen screen;
+  final ScreenCapture screen;
   final DeviceStyle style;
 
   @override
@@ -143,7 +148,7 @@ class _MockupPainter extends CustomPainter {
     required this.screenSize,
   });
 
-  final DeviceScreen screen;
+  final ScreenCapture screen;
   final Rect source;
   final DeviceStyle style;
   final double perPoint;
