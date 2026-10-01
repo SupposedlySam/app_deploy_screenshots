@@ -21,7 +21,7 @@ sealed class ScreenshotAnnotation {
 ///
 /// Several spotlights on one screenshot share a single scrim, each cutting
 /// its own hole.
-class Spotlight extends ScreenshotAnnotation {
+final class Spotlight extends ScreenshotAnnotation {
   const Spotlight(
     super.target, {
     this.padding = const EdgeInsets.all(8),
@@ -49,7 +49,7 @@ enum CalloutPlacement {
 }
 
 /// A speech bubble with [text] and an arrow pointing at [target].
-class Callout extends ScreenshotAnnotation {
+final class Callout extends ScreenshotAnnotation {
   const Callout(
     super.target,
     this.text, {
@@ -111,7 +111,7 @@ enum MagnifierShape { circle, roundedRect }
 /// Inside a `MarketingFrame` the inset is drawn on the canvas at full canvas
 /// resolution, centred on the target, so a wide inset can extend past the
 /// edges of the device. Without a frame it is kept inside the screenshot.
-class MagnifierInset extends ScreenshotAnnotation {
+final class MagnifierInset extends ScreenshotAnnotation {
   const MagnifierInset(
     super.target, {
     this.zoom = 1.4,

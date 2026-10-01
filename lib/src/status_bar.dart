@@ -20,7 +20,7 @@ import 'text_style_ext.dart';
 /// published, icons contrast with the platform brightness. Set
 /// [iconBrightness] to override.
 @immutable
-class StatusBarOverlay {
+final class StatusBarOverlay {
   const StatusBarOverlay({
     this.time,
     this.iconBrightness,

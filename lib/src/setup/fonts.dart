@@ -233,15 +233,3 @@ abstract final class FontSetup {
     if (verbose) debugPrint(message);
   }
 }
-
-class TestAssetBundle extends CachingAssetBundle {
-  @override
-  Future<String> loadString(String key, {bool cache = true}) async {
-    //overriding this method to avoid limit of 10KB per asset
-    final data = await load(key);
-    return utf8.decode(data.buffer.asUint8List());
-  }
-
-  @override
-  Future<ByteData> load(String key) async => rootBundle.load(key);
-}

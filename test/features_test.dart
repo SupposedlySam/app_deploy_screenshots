@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
 import 'package:app_deploy_screenshots/src/frame/frame_geometry.dart';
 import 'package:app_deploy_screenshots/src/output/png_encoder.dart';
+import 'package:app_deploy_screenshots/src/setup/fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -201,7 +202,7 @@ void main() {
     });
   });
 
-  group('encodeOpaquePng', () {
+  group('PngEncoder', () {
     testWidgets(
       'writes RGB and composites translucent pixels over the background',
       (tester) async {
@@ -889,7 +890,7 @@ void main() {
   group('packageLibFromConfig', () {
     final config = Uri.file('/work/app/.dart_tool/package_config.json');
     Uri? lib(String rootUri, [String? packageUri = 'lib/']) =>
-        AppDeployScreenshots.packageLibFromConfig(config, {
+        FontSetup.packageLibFromConfig(config, {
           'packages': [
             {'name': 'other', 'rootUri': '../../other/'},
             {
@@ -919,13 +920,11 @@ void main() {
 
     test('answers null when absent and throws on a malformed file', () {
       expect(
-        AppDeployScreenshots.packageLibFromConfig(config, {
-          'packages': [],
-        }, 'x'),
+        FontSetup.packageLibFromConfig(config, {'packages': []}, 'x'),
         isNull,
       );
       expect(
-        () => AppDeployScreenshots.packageLibFromConfig(config, [], 'x'),
+        () => FontSetup.packageLibFromConfig(config, [], 'x'),
         throwsFormatException,
       );
     });

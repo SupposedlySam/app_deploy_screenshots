@@ -82,16 +82,6 @@ abstract final class PngEncoder {
   }
 }
 
-/// Encodes [image] as a 24-bit RGB PNG with no alpha channel.
-///
-/// Google Play asks for "JPEG or 24-bit PNG (no alpha)", and App Store
-/// Connect asks for flattened images. Translucent pixels are composited over
-/// [background].
-Future<Uint8List> encodeOpaquePng(
-  ui.Image image, {
-  ui.Color background = const ui.Color(0xFFFFFFFF),
-}) => PngEncoder.encode(image, background: background);
-
 void _chunk(BytesBuilder out, String type, Uint8List data) {
   final typeBytes = Uint8List.fromList(type.codeUnits);
   final length = ByteData(4)..setUint32(0, data.length);

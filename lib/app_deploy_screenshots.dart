@@ -51,9 +51,7 @@ export 'src/frame/caption.dart' show Caption, CaptionEmphasis;
 export 'src/frame/marketing_frame.dart'
     show ScreenshotFrame, MarketingFrame, FrameBackground;
 export 'src/output/output_layout.dart' show OutputLayout;
-export 'src/output/png_encoder.dart' show encodeOpaquePng;
 export 'src/output/report.dart' show ScreenshotRecord;
-export 'src/setup/fonts.dart' show TestAssetBundle;
 export 'src/status_bar.dart' show StatusBarOverlay;
 export 'src/store_listing.dart' show StoreListing;
 export 'src/variant.dart'
@@ -76,12 +74,15 @@ class AppDeployScreenshots {
   ///
   /// [loadFonts] - Whether to load custom fonts (recommended: true)
   /// [verbose] - Whether to print detailed setup information
-  /// [mockPlatformChannels] - Whether to mock common platform channels
+  /// [mockPlatformChannels] - Whether to stub the `shared_preferences` and
+  /// `receive_sharing_intent` channels, for apps using those plugins that
+  /// fail without a platform. Off by default since 2.0: the package should
+  /// assume nothing about an app's plugins.
   /// [loadEmojiFont] - Whether to load [emojiFontFamily] (see [loadEmojiFont])
   static Future<void> initialize({
     bool loadFonts = true,
     bool verbose = false,
-    bool mockPlatformChannels = true,
+    bool mockPlatformChannels = false,
     bool loadEmojiFont = true,
   }) async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -132,15 +133,6 @@ class AppDeployScreenshots {
 
   /// Loads [emojiFontFamily]. [initialize] calls this by default.
   static Future<void> loadEmojiFont() => FontSetup.loadEmojiFont();
-
-  /// The `lib/` directory of [package] in a parsed `package_config.json`
-  /// found at [configUri], or null if it is not listed.
-  @visibleForTesting
-  static Uri? packageLibFromConfig(
-    Uri configUri,
-    Object? json,
-    String package,
-  ) => FontSetup.packageLibFromConfig(configUri, json, package);
 
   /// Loads every font in the app's `FontManifest.json`, so text renders in
   /// real typefaces instead of the test font's black boxes.

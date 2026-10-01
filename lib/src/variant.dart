@@ -16,7 +16,7 @@ import '../device.dart';
 /// keeps these in its own state can read them in `deviceSetup` from
 /// `tester.platformDispatcher`, or from `Device.brightness`.
 @immutable
-class ScreenshotVariant {
+final class ScreenshotVariant {
   const ScreenshotVariant({this.brightness, this.locale, String? suffix})
     : _suffix = suffix;
 
@@ -101,7 +101,7 @@ enum ScreenshotSource {
 /// What is being captured. Passed to every builder, so captions, frames and
 /// backgrounds can change per device, locale and brightness.
 @immutable
-class ScreenshotContext {
+final class ScreenshotContext {
   const ScreenshotContext({
     required this.name,
     required this.device,
