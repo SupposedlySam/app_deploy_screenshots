@@ -1,3 +1,8 @@
+## 1.1.0+1
+
+- docs: rewrite the README around store artwork, with rendered examples of every feature, accurate store requirements and a type-checked snippet for each API
+- docs: add `example/`, a chat app whose screenshot test uses every feature
+
 ## 1.1.0
 
 - fix: `byDevices` passes `deviceSetup` through to `byDevice`, which now runs it inside that device's overrides

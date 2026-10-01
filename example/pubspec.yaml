@@ -1,0 +1,23 @@
+name: app_deploy_screenshots_example
+description: Store screenshots for a small chat app, made with app_deploy_screenshots.
+publish_to: none
+
+environment:
+  sdk: ^3.9.2
+  flutter: '>=3.35.3'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  app_deploy_screenshots:
+    path: ../
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
