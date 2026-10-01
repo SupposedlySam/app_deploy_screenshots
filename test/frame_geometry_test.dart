@@ -266,4 +266,12 @@ void main() {
       }
     });
   });
+
+  test('a crop hides the status bar only when it covers the top inset', () {
+    const iphone = Device.appStoreIphone69; // 62 pt top inset
+    expect(ScreenCrop.belowStatusBar.hidesStatusBarOn(iphone), isTrue);
+    expect(const ScreenCrop.points(top: 62).hidesStatusBarOn(iphone), isTrue);
+    expect(const ScreenCrop.points(top: 5).hidesStatusBarOn(iphone), isFalse);
+    expect(ScreenCrop.none.hidesStatusBarOn(iphone), isFalse);
+  });
 }

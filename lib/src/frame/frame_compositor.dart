@@ -285,7 +285,7 @@ class _DeviceLayer implements FrameLayer {
         Paint()..filterQuality = FilterQuality.high,
       );
     // A cutout sits over the status bar, so not when that is cropped away.
-    if (!style.crop.hidesStatusBar) {
+    if (!style.crop.hidesStatusBarOn(device)) {
       _paintCutout(
         canvas,
         style.cutout.shapeFor(device),

@@ -45,47 +45,54 @@ class ScreenshotPipeline {
     required String path,
   }) async {
     final captured = await capturer.capture(tester, context, request);
-    final frame = request.frame?.resolve(context);
-    final widgets = frame == null
-        ? const <WidgetDecoration, ui.Image>{}
-        : await _renderDecorations(
-            tester,
-            frame,
-            context,
-            frame.canvasSize ??
-                Size(
-                  captured.image.width.toDouble(),
-                  captured.image.height.toDouble(),
-                ),
-          );
+    var widgets = const <WidgetDecoration, ui.Image>{};
     try {
+      final frame = request.frame?.resolve(context);
+      if (frame != null) {
+        widgets = await _renderDecorations(
+          tester,
+          frame,
+          context,
+          frame.canvasSize ??
+              Size(
+                captured.image.width.toDouble(),
+                captured.image.height.toDouble(),
+              ),
+        );
+      }
       return (await tester.runAsync(() async {
         final crop = frame?.effectiveDevice.crop ?? ScreenCrop.none;
         final screen = await ScreenOverlays.apply(
           captured,
           // A status bar that the frame crops away isn't worth drawing.
-          statusBar: crop.hidesStatusBar ? null : request.statusBar,
+          statusBar: crop.hidesStatusBarOn(captured.device)
+              ? null
+              : request.statusBar,
           includeCanvasAnnotations: frame == null,
         );
         if (frame == null) return writer.write(context, screen, path: path);
 
-        final composed = await compositor.compose(
-          frame: frame,
-          canvasSize:
-              frame.canvasSize ??
-              Size(screen.width.toDouble(), screen.height.toDouble()),
-          widgetImages: widgets,
-          screen: FrameScreen(
-            image: screen,
-            captured: captured,
-            sourceRect: crop.sourceRectFor(
-              captured.device,
-              Size(screen.width.toDouble(), screen.height.toDouble()),
-              captured.viewRect,
+        final ComposedFrame composed;
+        try {
+          composed = await compositor.compose(
+            frame: frame,
+            canvasSize:
+                frame.canvasSize ??
+                Size(screen.width.toDouble(), screen.height.toDouble()),
+            widgetImages: widgets,
+            screen: FrameScreen(
+              image: screen,
+              captured: captured,
+              sourceRect: crop.sourceRectFor(
+                captured.device,
+                Size(screen.width.toDouble(), screen.height.toDouble()),
+                captured.viewRect,
+              ),
             ),
-          ),
-        );
-        screen.dispose();
+          );
+        } finally {
+          screen.dispose();
+        }
         return writer.write(
           context,
           composed.image,

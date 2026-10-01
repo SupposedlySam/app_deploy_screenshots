@@ -258,8 +258,11 @@ final class ScreenCrop {
     );
   }
 
-  /// Whether the status bar area is left out.
-  bool get hidesStatusBar => statusBar || top > 0;
+  /// Whether the crop leaves out [device]'s whole status bar area. Not
+  /// part of the public API.
+  @internal
+  bool hidesStatusBarOn(Device device) =>
+      statusBar || (device.safeArea.top > 0 && top >= device.safeArea.top);
 
   @override
   bool operator ==(Object other) =>
