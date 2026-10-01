@@ -22,15 +22,20 @@ import 'text_style_ext.dart';
 @immutable
 class StatusBarOverlay {
   const StatusBarOverlay({
-    this.time = '9:41',
+    this.time,
     this.iconBrightness,
     this.style,
     this.fontFamily = PackageText.family,
     this.batteryLevel = 1.0,
   }) : assert(batteryLevel >= 0 && batteryLevel <= 1);
 
-  /// The clock text. `9:41` is Apple's own marketing time.
-  final String time;
+  /// The clock text. Defaults to `9:41` on iOS, Apple's own marketing time,
+  /// and `9:30` on Android, the time Google's own Play listings show.
+  final String? time;
+
+  /// The clock text drawn on [platform].
+  String timeFor(DevicePlatform platform) =>
+      time ?? (platform == DevicePlatform.ios ? '9:41' : '9:30');
 
   /// [Brightness.dark] draws dark icons (for a light background),
   /// [Brightness.light] draws light icons. Null reads it from the app.
@@ -68,7 +73,12 @@ class StatusBarOverlay {
     // the edges of a short bar.
     final ears = height >= 44 && width < 600;
     final cy = ears ? math.min(height / 2, 30.0) : height / 2;
-    final clock = _text(time, ears ? 17 : 14, FontWeight.w600, color);
+    final clock = _text(
+      timeFor(DevicePlatform.ios),
+      ears ? 17 : 14,
+      FontWeight.w600,
+      color,
+    );
 
     if (ears) {
       clock.paint(
@@ -99,7 +109,12 @@ class StatusBarOverlay {
 
   void _paintAndroid(Canvas canvas, double width, double height, Color color) {
     final cy = height / 2;
-    final clock = _text(time, 14, FontWeight.w500, color);
+    final clock = _text(
+      timeFor(DevicePlatform.android),
+      14,
+      FontWeight.w500,
+      color,
+    );
     clock.paint(canvas, Offset(16, cy - clock.height / 2));
 
     final cluster = <_Icon>[

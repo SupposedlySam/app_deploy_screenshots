@@ -601,6 +601,70 @@ void main() {
     });
   });
 
+  group('FrameBackground', () {
+    testWidgets('screen() fills the canvas from the app itself', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const _Blocks());
+      final png = await shoot(
+        tester,
+        'bg_screen',
+        frame: const MarketingFrame(
+          background: FrameBackground.screen(tint: Color(0x00000000)),
+          layout: FrameLayout.captionTop,
+        ),
+      );
+      // The app is grey with a blue and a green box; blurred and enlarged,
+      // the canvas corners come out grey, not the fallback's near-black.
+      expect(
+        png.fraction(const Rect.fromLTWH(0, 0, 60, 60), isGrey),
+        greaterThan(0.9),
+      );
+    });
+
+    testWidgets(
+      'image(blur:) softens hard edges; without blur they stay hard',
+      (tester) async {
+        // 200 x 200, left half black: scaled to cover the canvas, a hard edge
+        // down the middle, smoothed over only ~14 px.
+        final pixels = Uint8List(200 * 200 * 4);
+        for (var i = 0; i < 200 * 200; i++) {
+          final white = i % 200 >= 100 ? 255 : 0;
+          pixels.setAll(i * 4, [white, white, white, 255]);
+        }
+        final halves = PngEncoder.encodeRgba(pixels, 200, 200);
+        Future<DecodedPng> render(double blur) async {
+          await tester.pumpWidget(const _Blocks());
+          return shoot(
+            tester,
+            'bg_blur_$blur',
+            frame: MarketingFrame(
+              background: FrameBackground.image(halves, blur: blur),
+              device: const DeviceStyle.screenOnly(shadow: false),
+            ),
+          );
+        }
+
+        // 30-60 px left of the edge: pure black when sharp. Blurred by 60 px
+        // (20 pt at 3 px/pt), white bleeds in: 16-31% for a Gaussian there.
+        bool lifted(Color c) => c.r > 0.08;
+        final edge = const Rect.fromLTWH(600, 20, 30, 40);
+        expect((await render(0)).fraction(edge, lifted, step: 1), 0);
+        expect((await render(20)).fraction(edge, lifted, step: 1), 1);
+      },
+    );
+  });
+
+  test('status bar clock defaults to each platform\'s marketing time', () {
+    const bar = StatusBarOverlay();
+    expect(bar.timeFor(DevicePlatform.ios), '9:41');
+    expect(bar.timeFor(DevicePlatform.android), '9:30');
+    expect(
+      const StatusBarOverlay(time: '10:00').timeFor(DevicePlatform.android),
+      '10:00',
+    );
+  });
+
   group('variants', () {
     testWidgets(
       'render each brightness fully transitioned, with suffixed names',

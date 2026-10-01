@@ -127,7 +127,12 @@ class _BackgroundLayer implements FrameLayer {
 
   @override
   Future<void> paint(Canvas canvas, FrameLayerContext context) =>
-      context.frame.background.fill(canvas, context.plan.canvasSize);
+      context.frame.background.fill(
+        canvas,
+        context.plan.canvasSize,
+        unit: context.plan.unit,
+        screen: context.screen?.image,
+      );
 }
 
 class _CaptionLayer implements FrameLayer {

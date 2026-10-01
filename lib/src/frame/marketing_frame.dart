@@ -60,8 +60,31 @@ sealed class FrameBackground {
   ///
   /// Read them however suits the project: `File(path).readAsBytesSync()`
   /// or `(await rootBundle.load(asset)).buffer.asUint8List()`.
-  const factory FrameBackground.image(Uint8List bytes, {Color fallback}) =
-      _ImageBackground;
+  ///
+  /// [blur] softens it, in caption points, so a photo sets a mood without
+  /// competing with the caption. [tint] is laid over it, e.g. a translucent
+  /// black to keep white text readable. [fallback] is drawn underneath and
+  /// decides whether the caption is dark or light: pick a colour close to
+  /// the image's overall tone.
+  const factory FrameBackground.image(
+    Uint8List bytes, {
+    Color fallback,
+    double blur,
+    Color? tint,
+  }) = _ImageBackground;
+
+  /// The app's own screen, enlarged to cover the canvas, blurred and
+  /// tinted: a backdrop that always matches the screenshot. On a slide
+  /// without a device, [fallback] fills the canvas instead.
+  ///
+  /// [brightness] says whether the result is dark or light, which sets the
+  /// caption colour; the default dark tint suits white captions.
+  const factory FrameBackground.screen({
+    double blur,
+    Color tint,
+    Color fallback,
+    Brightness brightness,
+  }) = _ScreenBackground;
 
   /// Paints anything onto the canvas, in pixels.
   const factory FrameBackground.custom(
@@ -72,36 +95,69 @@ sealed class FrameBackground {
   /// Whether text over this background should be dark or light.
   Brightness get brightness;
 
-  /// Fills [size] with this background.
+  /// Fills [size] with this background. [unit] is canvas pixels per caption
+  /// point; [screen] is the screenshot on this slide, if there is one.
   @internal
-  Future<void> fill(Canvas canvas, Size size) async {
+  Future<void> fill(
+    Canvas canvas,
+    Size size, {
+    double unit = 1,
+    ui.Image? screen,
+  }) async {
     final rect = Offset.zero & size;
     switch (this) {
       case _SolidBackground(:final color):
         canvas.drawRect(rect, Paint()..color = color);
       case _GradientBackground(:final gradient):
         canvas.drawRect(rect, Paint()..shader = gradient.createShader(rect));
-      case _ImageBackground(:final bytes, :final fallback):
+      case _ImageBackground(
+        :final bytes,
+        :final fallback,
+        :final blur,
+        :final tint,
+      ):
         canvas.drawRect(rect, Paint()..color = fallback);
         final codec = await ui.instantiateImageCodec(bytes);
         final image = (await codec.getNextFrame()).image;
-        final imageSize = Size(image.width.toDouble(), image.height.toDouble());
-        final fitted = applyBoxFit(BoxFit.cover, imageSize, size);
-        final src = Alignment.center.inscribe(
-          fitted.source,
-          Offset.zero & imageSize,
-        );
-        canvas.drawImageRect(
-          image,
-          src,
-          rect,
-          Paint()..filterQuality = FilterQuality.high,
-        );
+        _cover(canvas, image, rect, blur * unit);
         image.dispose();
+        if (tint != null) canvas.drawRect(rect, Paint()..color = tint);
+      case _ScreenBackground(:final blur, :final tint, :final fallback):
+        canvas.drawRect(rect, Paint()..color = fallback);
+        if (screen != null) _cover(canvas, screen, rect, blur * unit);
+        canvas.drawRect(rect, Paint()..color = tint);
       case _CustomBackground(:final paint):
         paint(canvas, size);
     }
   }
+}
+
+/// Draws [image] to cover [rect], blurred by [sigma] canvas pixels.
+void _cover(Canvas canvas, ui.Image image, Rect rect, double sigma) {
+  final imageSize = Size(image.width.toDouble(), image.height.toDouble());
+  final fitted = applyBoxFit(BoxFit.cover, imageSize, rect.size);
+  final src = Alignment.center.inscribe(fitted.source, Offset.zero & imageSize);
+  final paint = Paint()..filterQuality = FilterQuality.high;
+  if (sigma <= 0) {
+    canvas.drawImageRect(image, src, rect, paint);
+    return;
+  }
+  // Clamp the blur at the edges, or it fades to transparent there.
+  canvas
+    ..save()
+    ..clipRect(rect)
+    ..saveLayer(
+      rect,
+      Paint()
+        ..imageFilter = ui.ImageFilter.blur(
+          sigmaX: sigma,
+          sigmaY: sigma,
+          tileMode: TileMode.clamp,
+        ),
+    )
+    ..drawImageRect(image, src, rect, paint)
+    ..restore()
+    ..restore();
 }
 
 class _SolidBackground extends FrameBackground {
@@ -127,14 +183,36 @@ class _GradientBackground extends FrameBackground {
 }
 
 class _ImageBackground extends FrameBackground {
-  const _ImageBackground(this.bytes, {this.fallback = const Color(0xFF202020)});
+  const _ImageBackground(
+    this.bytes, {
+    this.fallback = const Color(0xFF202020),
+    this.blur = 0,
+    this.tint,
+  }) : assert(blur >= 0);
   final Uint8List bytes;
+  final double blur;
+  final Color? tint;
 
   /// Drawn under the image and used to choose the caption colour.
   final Color fallback;
 
   @override
   Brightness get brightness => _brightnessOf(fallback);
+}
+
+class _ScreenBackground extends FrameBackground {
+  const _ScreenBackground({
+    this.blur = 30,
+    this.tint = const Color(0x66000000),
+    this.fallback = const Color(0xFF1C1C1E),
+    this.brightness = Brightness.dark,
+  }) : assert(blur >= 0);
+  final double blur;
+  final Color tint;
+  final Color fallback;
+
+  @override
+  final Brightness brightness;
 }
 
 class _CustomBackground extends FrameBackground {
