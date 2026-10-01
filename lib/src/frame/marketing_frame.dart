@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 import '../variant.dart';
+import 'caption.dart';
 import 'device_style.dart';
 import 'frame_layout.dart';
 
+export 'caption.dart' show Caption;
 export 'device_style.dart' show DeviceBezel;
 export 'frame_layout.dart' show FrameLayout;
 
@@ -145,38 +147,6 @@ class _CustomBackground extends FrameBackground {
 
 Brightness _brightnessOf(Color c) =>
     c.computeLuminance() > 0.45 ? Brightness.light : Brightness.dark;
-
-/// A headline and an optional subheadline.
-///
-/// Font sizes are in points of `MarketingFrame.referenceSize`, scaled by the
-/// canvas area, so a caption covers the same share of every store image, from
-/// a 1080 × 1920 phone to a 2064 × 2752 iPad.
-@immutable
-class Caption {
-  const Caption({
-    required this.headline,
-    this.subheadline,
-    this.headlineStyle,
-    this.subheadlineStyle,
-    this.textAlign = TextAlign.center,
-    this.textDirection = TextDirection.ltr,
-  });
-
-  final String headline;
-  final String? subheadline;
-
-  /// Merged over 30pt bold Roboto in a colour that contrasts with the
-  /// background. Set `fontFamily` to use one of the app's fonts.
-  final TextStyle? headlineStyle;
-
-  /// Merged over 17pt Roboto, slightly muted.
-  final TextStyle? subheadlineStyle;
-
-  final TextAlign textAlign;
-
-  /// Set to [TextDirection.rtl] for right-to-left locales.
-  final TextDirection textDirection;
-}
 
 /// Store-listing artwork: the screenshot scaled down onto a background, with
 /// a caption, rounded corners and an optional bezel, at an exact pixel size.

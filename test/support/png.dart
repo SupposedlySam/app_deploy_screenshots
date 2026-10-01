@@ -21,6 +21,19 @@ class DecodedPng {
   final int height;
   final ByteData _rgba;
 
+  /// Reads the pixels of an in-memory [image] and disposes it.
+  static Future<DecodedPng> fromImage(
+    WidgetTester tester,
+    ui.Image image,
+  ) async {
+    return (await tester.runAsync(() async {
+      final rgba = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final png = DecodedPng._(image.width, image.height, rgba!);
+      image.dispose();
+      return png;
+    }))!;
+  }
+
   static Future<DecodedPng> read(WidgetTester tester, String path) async {
     final bytes = File(path).readAsBytesSync();
     return (await tester.runAsync(() async {

@@ -37,8 +37,16 @@ export 'src/frame/device_style.dart'
         ScreenCutout,
         ScreenCrop;
 export 'src/frame/frame_layout.dart' show FrameLayout;
+export 'src/frame/caption.dart'
+    show
+        Caption,
+        CaptionEmphasis,
+        EmphasisColor,
+        EmphasisStyle,
+        EmphasisMarker,
+        EmphasisGradient;
 export 'src/frame/marketing_frame.dart'
-    show ScreenshotFrame, MarketingFrame, FrameBackground, Caption;
+    show ScreenshotFrame, MarketingFrame, FrameBackground;
 export 'src/output/png_encoder.dart' show encodeOpaquePng;
 export 'src/output/report.dart' show ScreenshotRecord, ScreenshotSource;
 export 'src/setup/fonts.dart' show TestAssetBundle;
@@ -74,6 +82,14 @@ class AppDeployScreenshots {
     if (verbose) debugPrint('🚀 Initializing screenshot test environment...');
 
     if (loadFonts) await loadAppFonts(verbose: verbose, skipOnError: true);
+
+    try {
+      await FontSetup.loadTextFont();
+    } catch (e) {
+      // Printed even when not verbose: captions would fall back to the
+      // regular-only Roboto, and nothing else would say why.
+      debugPrint('⚠️ app_deploy_screenshots: caption font not loaded: $e');
+    }
 
     if (loadEmojiFont) {
       try {

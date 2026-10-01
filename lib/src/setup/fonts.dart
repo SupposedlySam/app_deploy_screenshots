@@ -114,12 +114,24 @@ abstract final class FontSetup {
   /// declared under `flutter: fonts:`. A font declared there would be
   /// bundled into every app that depends on this package, and at 2 MB that
   /// is too much to add to a release build for a test-only feature.
-  static Future<void> loadEmojiFont() async {
+  static Future<void> loadEmojiFont() =>
+      _loadBundled('NotoEmoji.ttf', emojiFontFamily);
+
+  /// Font family the package draws its own text in (captions, the status
+  /// bar clock, callouts): Roboto as a variable font, so every weight is a
+  /// real weight. The package's static Roboto has only the regular weight,
+  /// and the test renderer only fakes bold, faintly.
+  static const String textFontFamily = 'AppDeployScreenshotsRoboto';
+
+  /// Loads [textFontFamily]. Read from the package's `lib/` like the emoji
+  /// font, so it is never bundled into apps.
+  static Future<void> loadTextFont() =>
+      _loadBundled('Roboto-Variable.ttf', textFontFamily);
+
+  static Future<void> _loadBundled(String file, String family) async {
     final lib = _packageLibDirectory();
-    final bytes = await File(
-      '${lib.path}/src/fonts/NotoEmoji.ttf',
-    ).readAsBytes();
-    final loader = FontLoader(emojiFontFamily)
+    final bytes = await File('${lib.path}/src/fonts/$file').readAsBytes();
+    final loader = FontLoader(family)
       ..addFont(Future.value(ByteData.sublistView(bytes)));
     await loader.load();
   }

@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import '../text_style_ext.dart';
 import '../variant.dart';
 import 'png_encoder.dart';
 
@@ -212,7 +213,8 @@ abstract final class ContactSheets {
         text: TextSpan(
           text: files[i].uri.pathSegments.last,
           style: const TextStyle(
-            fontFamily: 'Roboto',
+            fontFamily: PackageText.family,
+            fontFamilyFallback: PackageText.fallback,
             fontSize: 20,
             color: Color(0xFF3A3A3C),
           ),

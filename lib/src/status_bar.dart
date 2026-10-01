@@ -5,6 +5,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 
 import '../device.dart';
+import 'text_style_ext.dart';
 
 /// Draws a clean status bar into the top safe-area inset: `9:41`, full
 /// signal, full Wi-Fi, full battery. That is the look store screenshots use,
@@ -24,7 +25,7 @@ class StatusBarOverlay {
     this.time = '9:41',
     this.iconBrightness,
     this.style,
-    this.fontFamily = 'Roboto',
+    this.fontFamily = PackageText.family,
     this.batteryLevel = 1.0,
   }) : assert(batteryLevel >= 0 && batteryLevel <= 1);
 
@@ -38,7 +39,8 @@ class StatusBarOverlay {
   /// Which platform's layout to draw. Null follows `Device.platform`.
   final DevicePlatform? style;
 
-  /// Font for the clock. Roboto ships with this package.
+  /// Font for the clock. Defaults to the Roboto that ships with this
+  /// package.
   final String fontFamily;
 
   /// Battery fill, 0–1.
@@ -120,12 +122,15 @@ class StatusBarOverlay {
       TextPainter(
         text: TextSpan(
           text: text,
-          style: TextStyle(
-            fontFamily: fontFamily,
-            fontSize: size,
-            fontWeight: weight,
-            color: color,
-            height: 1.0,
+          style: PackageText.withWeightAxis(
+            TextStyle(
+              fontFamily: fontFamily,
+              fontSize: size,
+              fontWeight: weight,
+              color: color,
+              height: 1.0,
+              fontFamilyFallback: PackageText.fallback,
+            ),
           ),
         ),
         textDirection: TextDirection.ltr,

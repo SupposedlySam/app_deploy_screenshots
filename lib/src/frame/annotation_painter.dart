@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/painting.dart';
 
 import '../annotations.dart';
+import '../text_style_ext.dart';
 import '../capture/captured_screen.dart';
 import 'frame_geometry.dart';
 
@@ -76,12 +77,15 @@ void _paintCallout(Canvas canvas, Size view, Callout c, Rect target) {
       TextPainter(
         text: TextSpan(
           text: c.text,
-          style: const TextStyle(
-            fontFamily: 'Roboto',
-            fontSize: 15,
-            color: Color(0xFFFFFFFF),
-            height: 1.25,
-          ).merge(c.style),
+          style: PackageText.withWeightAxis(
+            const TextStyle(
+              fontFamily: PackageText.family,
+              fontFamilyFallback: PackageText.fallback,
+              fontSize: 15,
+              color: Color(0xFFFFFFFF),
+              height: 1.25,
+            ).merge(c.style),
+          ),
         ),
         textDirection: TextDirection.ltr,
         textAlign: TextAlign.center,
