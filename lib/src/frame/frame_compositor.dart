@@ -172,8 +172,9 @@ class _DeviceLayer implements FrameLayer {
       ..save()
       ..translate(placement.rect.center.dx, placement.rect.center.dy)
       ..rotate(placement.angle);
-    if (style.fadeOut > 0)
+    if (style.fadeOut > 0) {
       canvas.saveLayer(outer.outerRect.inflate(64 * unit), Paint());
+    }
 
     if (style.glow case final glow?) {
       canvas.drawRRect(

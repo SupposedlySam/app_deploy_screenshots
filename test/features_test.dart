@@ -363,8 +363,7 @@ void main() {
             headline: 'Headline',
             headlineStyle: TextStyle(color: Color(0xFFFFFFFF)),
           ),
-          bezel: null,
-          shadow: false,
+          device: DeviceStyle.screenOnly(shadow: false),
         ),
       );
 

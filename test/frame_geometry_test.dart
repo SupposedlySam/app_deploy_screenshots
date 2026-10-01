@@ -49,8 +49,14 @@ void main() {
     });
 
     test('a thicker bezel shrinks the screen rather than the margins', () {
-      final thin = plan(const MarketingFrame(bezel: DeviceBezel(width: 4)));
-      final thick = plan(const MarketingFrame(bezel: DeviceBezel(width: 24)));
+      final thin = plan(
+        const MarketingFrame(device: DeviceStyle(bezel: DeviceBezel(width: 4))),
+      );
+      final thick = plan(
+        const MarketingFrame(
+          device: DeviceStyle(bezel: DeviceBezel(width: 24)),
+        ),
+      );
       expect(thick.screen!.rect.width, lessThan(thin.screen!.rect.width));
       expect(
         thick.screen!.rect.inflate(thick.bezelWidth).width,
@@ -73,11 +79,27 @@ void main() {
       expect(p.captionTop, greaterThan(p.screen!.rect.bottom));
     });
 
-    test('tilted rotates by the frame tilt', () {
+    test('bleed rotates by its angle', () {
       final p = plan(
-        const MarketingFrame(layout: FrameLayout.tilted, tilt: -8),
+        const MarketingFrame(layout: FrameLayout.bleed(angle: -8)),
       );
       expect(p.screen!.angle, closeTo(-8 * 3.141592653589793 / 180, 1e-12));
+    });
+
+    test('1.x parameters still work through the deprecated forwarders', () {
+      // ignore: deprecated_member_use_from_same_package
+      final tilted = plan(
+        const MarketingFrame(layout: FrameLayout.tilted, tilt: -12),
+      );
+      expect(
+        tilted.screen!.angle,
+        closeTo(-12 * 3.141592653589793 / 180, 1e-12),
+      );
+      final noBezel = plan(
+        // ignore: deprecated_member_use_from_same_package
+        const MarketingFrame(bezel: null),
+      );
+      expect(noBezel.bezelWidth, 0);
     });
   });
 
