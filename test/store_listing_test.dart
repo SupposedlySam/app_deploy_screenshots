@@ -186,6 +186,27 @@ void main() {
     expect(white.height, closeTo(yellow.height, 6));
   });
 
+  testWidgets('a builder returning null leaves a captioned slide unframed', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    final listing = StoreListing(
+      tester,
+      devices: const [Device.appStoreIphone69],
+      output: OutputLayout.folders('$root/unframed'),
+      frame: ScreenshotFrame.builder((_) => null),
+      customPump: (t) => t.pump(),
+    );
+    final records = await listing.screenshot(
+      'raw',
+      caption: const Caption(headline: 'Ignored'),
+    );
+    expect(records.single.framed, isFalse);
+    final png = await DecodedPng.read(tester, records.single.path);
+    // The app's grey, edge to edge: no background, caption or device.
+    expect(png.pixel(10, 10), const Color(0xFF808080));
+  });
+
   testWidgets('writeReport writes the manifest for the listing output', (
     tester,
   ) async {

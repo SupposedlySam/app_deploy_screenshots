@@ -18,9 +18,11 @@ sealed class FrameLayout {
   /// The whole device above, caption below it.
   static const FrameLayout captionBottom = _Stacked(captionFirst: false);
 
-  /// Caption above, a larger device rotated by `MarketingFrame.tilt`
-  /// (default -8°), running off the bottom. The same as
-  /// `FrameLayout.bleed(angle: -8)`, kept for 1.x code.
+  /// The 1.x tilted layout, kept for 1.x code: caption above, the device
+  /// right under it at 0.72 of the canvas width, rotated by
+  /// `MarketingFrame.tilt` (default -8°). For new code,
+  /// `FrameLayout.bleed(angle: -8)` runs a larger tilted device off the
+  /// bottom edge, as top listings do.
   static const FrameLayout tilted = _Bleed._tilted();
 
   /// Caption above, the device large and running off the bottom edge: the

@@ -25,7 +25,7 @@ typedef LocaleFolder = String? Function(Locale locale, DevicePlatform platform);
 sealed class OutputLayout {
   const OutputLayout();
 
-  /// `<root>/<platform>/<device>/01_home.dark.fr.png`: one folder per store
+  /// `<root>/<platform>/<device>/01_home.dark.fr_FR.png`: one folder per store
   /// upload slot, every variant side by side.
   const factory OutputLayout.folders([String root]) = _Folders;
 
@@ -46,10 +46,15 @@ sealed class OutputLayout {
   /// locale, which can differ: `Locale('ja', 'JP')` is `ja` on the App
   /// Store and `ja-JP` on Google Play, Hebrew `he` and `iw-IL`, simplified
   /// Chinese `zh-Hans` and `zh-CN`. Screenshots whose variant has no locale
-  /// go in [defaultLocale]'s folder: set it to the language the app shows
-  /// them in. [localeFolder] overrides the mapping, for a language a store
-  /// added after this package's list (fastlane 2.240) or a folder of your
-  /// choosing.
+  /// go in [defaultLocale]'s folder. It only names the folder: those
+  /// screenshots still render in the test's locale (en-US), so for an app
+  /// in another language give the variants its locale, e.g.
+  /// `variants: [ScreenshotVariant(locale: Locale('de', 'DE'))]`.
+  /// [localeFolder] overrides the mapping, for a language a store added
+  /// after this package's list (fastlane 2.240) or a folder of your
+  /// choosing. Layouts compare equal only with the same [localeFolder]
+  /// function, so pass a named function rather than a new closure if that
+  /// matters.
   ///
   /// Both tools upload every file in a folder, in file name order (which
   /// the order prefix sets), replacing the store's current screenshots. So
@@ -112,23 +117,25 @@ final class _Fastlane extends OutputLayout {
   OutputPath pathsFor(List<Device> devices, List<ScreenshotVariant> variants) {
     for (final platform in {for (final d in devices) d.platform}) {
       _oneEach(
-        'variant',
+        'variants',
         variants,
-        (v) => _folder(v.locale ?? defaultLocale, platform),
+        (v) => '${_folder(v.locale ?? defaultLocale, platform)} folder',
+        (v) => '$v',
         'fastlane uploads every file there as another screenshot. Use one '
             'variant per locale, and write the others (dark mode, say) to '
             'OutputLayout.folders() or another root.',
       );
     }
     _oneEach(
-      'device',
+      'devices',
       devices,
       (d) => switch (d.platform) {
         DevicePlatform.ios =>
           'App Store slot for ${d.pixelSize.width.round()} × '
               '${d.pixelSize.height.round()} px',
-        DevicePlatform.android => supplyFolder(d),
+        DevicePlatform.android => '${supplyFolder(d)} folder',
       },
+      (d) => d.name,
       'one would replace or join the other in that upload slot. Write the '
           'others with OutputLayout.folders().',
     );
@@ -140,6 +147,7 @@ final class _Fastlane extends OutputLayout {
     String what,
     List<T> items,
     String Function(T item) slot,
+    String Function(T item) describe,
     String why,
   ) {
     final bySlot = <String, List<T>>{};
@@ -149,9 +157,9 @@ final class _Fastlane extends OutputLayout {
     for (final MapEntry(key: name, value: shared) in bySlot.entries) {
       if (shared.length > 1) {
         throw ArgumentError(
-          'With OutputLayout.fastlane(), the ${what}s '
-          '${shared.map((s) => s is Device ? s.name : '$s').join(' and ')} '
-          'would all go to the $name folder, and $why',
+          'With OutputLayout.fastlane(), the $what '
+          '${shared.map(describe).join(' and ')} would all go to the $name, '
+          'and $why',
         );
       }
     }
@@ -179,9 +187,12 @@ final class _Fastlane extends OutputLayout {
 
   /// The locale folder for [locale] on [platform]'s store.
   String _folder(Locale locale, DevicePlatform platform) {
-    final tag =
-        localeFolder?.call(locale, platform) ??
-        StoreLocales.tagFor(locale, platform);
+    final custom = localeFolder?.call(locale, platform);
+    assert(
+      custom == null || (custom.isNotEmpty && !custom.contains('/')),
+      'localeFolder returned "$custom" for $locale: a folder name, please.',
+    );
+    final tag = custom ?? StoreLocales.tagFor(locale, platform);
     if (tag != null) return tag;
     final options = StoreLocales.suggestionsFor(locale, platform);
     throw ArgumentError(

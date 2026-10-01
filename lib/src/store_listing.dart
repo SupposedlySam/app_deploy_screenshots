@@ -106,7 +106,12 @@ final class StoreListing {
     CustomPump? customPump,
     DeviceSetup? deviceSetup,
   }) {
-    final design = _withCaption(frame ?? this.frame, caption, captionFor);
+    final design = _withCaption(
+      frame ?? this.frame,
+      caption,
+      captionFor,
+      keepUnframed: true,
+    );
     return _slide(
       name,
       ScreenshotSource.app,
@@ -270,8 +275,9 @@ final class StoreListing {
   static ScreenshotFrame? _withCaption(
     ScreenshotFrame? design,
     Caption? caption,
-    Caption Function(ScreenshotContext shot)? captionFor,
-  ) {
+    Caption Function(ScreenshotContext shot)? captionFor, {
+    bool keepUnframed = false,
+  }) {
     assert(
       caption == null || captionFor == null,
       'Pass caption or captionFor, not both.',
@@ -279,7 +285,11 @@ final class StoreListing {
     if (caption == null && captionFor == null) return design;
     return ScreenshotFrame.builder((context) {
       final text = captionFor?.call(context) ?? caption;
-      final base = design?.resolve(context) ?? const MarketingFrame();
+      final resolved = design?.resolve(context);
+      // A builder that returns null leaves that screenshot unframed, caption
+      // or not; with no design at all, the caption gets a plain frame.
+      if (design != null && resolved == null && keepUnframed) return null;
+      final base = resolved ?? const MarketingFrame();
       return base.copyWith(caption: text?.styledLike(base.caption));
     });
   }

@@ -93,7 +93,7 @@ If the test hangs, your screen has a running animation: see [Screens that never 
 ```dart
 /// The shared design. `shot` says which device, locale and brightness.
 MarketingFrame design(ScreenshotContext shot) => MarketingFrame(
-  background: FrameBackground.gradient(brandGradient(shot.brightness)),
+  background: FrameBackground.gradient(brandGradient(shot)),
   layout: const FrameLayout.bleed(),
   device: const DeviceStyle.detailed(),
 );
@@ -191,7 +191,6 @@ Pass it as `frame:`, or `ScreenshotFrame.builder((shot) => ...)` to vary it by l
 | --- | --- |
 | `FrameLayout.captionTop` (default) | The caption above the whole device |
 | `FrameLayout.bleed()` | A large device running off the bottom edge, the layout most top listings use. `width:` sizes the device, `visible:` sets how much of it shows, `angle:` tilts it. |
-| `FrameLayout.tilted` | `bleed` tilted by a few degrees |
 | `FrameLayout.captionBottom` | The device above the caption |
 
 ### Devices
@@ -402,11 +401,12 @@ fastlane/
 └── metadata/android/
     ├── en-US/images/phoneScreenshots/01_home.png
     └── ja-JP/images/phoneScreenshots/01_home.png
+    … and the iPad, 7" and 10" tablet files beside these
 ```
 
 - Each store names the locale folder its own way (Japanese is `ja` on the App Store and `ja-JP` on Play), and the package uses the right one for each.
 - Android screenshots go into supply's phone, 7", 10", TV and Wear folders, by `Device.effectiveType`.
-- Both tools upload every file in a folder, in name order. So, before anything is captured, it's an error to put two variants in one folder (light and dark of one locale), two devices in one upload slot, or a locale the store doesn't list. `localeFolder:` names a folder yourself, and `defaultLocale:` is the folder for variants without a locale.
+- Both tools upload every file in a folder, in name order. So, before anything is captured, it's an error to put two variants in one folder (light and dark of one locale), two devices in one upload slot, or a locale the store doesn't list. `localeFolder:` names a folder yourself, and `defaultLocale:` is the folder for variants without a locale (it only names the folder; give the variants a locale to render in another language).
 - supply has no Chromebook folder, so write Chromebook screenshots with `OutputLayout.folders()`.
 
 ## Review
@@ -456,7 +456,7 @@ Every capture waits for `Image` widgets and `DecoratedBox` images to finish deco
 
 ### Other devices
 
-Beyond the store sizes, `byDevices(tester, name, devices: [...])` captures any list of devices, `byPlatform(tester, name)` all 20 built-in ones (iPhones, iPads, Android phones and tablets, Mac, Apple TV, Vision Pro and Android TV), and `byDevice` one device to an exact path. They take the same artwork options, and are useful for previews, docs and layout checks.
+Beyond the store sizes, `byDevices(tester, name, devices: [...])` captures any list of devices, `byPlatform(tester, name)` the 20 general-purpose presets (iPhones, iPads, Android phones and tablets, Mac, Apple TV, Vision Pro and Android TV), and `byDevice` one device to an exact path. They take the same artwork options, and are useful for previews, docs and layout checks.
 
 A device of your own:
 

@@ -41,7 +41,11 @@ void main() {
     for (final (name, layout, device) in [
       ('caption_top', FrameLayout.captionTop, const DeviceStyle()),
       ('bleed', const FrameLayout.bleed(), const DeviceStyle.detailed()),
-      ('tilted', FrameLayout.tilted, const DeviceStyle.detailed()),
+      (
+        'tilted',
+        const FrameLayout.bleed(angle: -8),
+        const DeviceStyle.detailed(),
+      ),
       (
         'cropped',
         FrameLayout.captionBottom,

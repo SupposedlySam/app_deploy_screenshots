@@ -71,198 +71,198 @@ abstract final class AnnotationPainter {
       }
     }
   }
-}
 
-void _paintCallout(
-  Canvas canvas,
-  Size view,
-  Callout c,
-  Rect target,
-  TextDirection textDirection,
-) {
-  const margin = 12.0, arrow = 9.0, gap = 4.0;
-  const pad = EdgeInsets.symmetric(horizontal: 14, vertical: 10);
-  final text =
-      TextPainter(
-        text: TextSpan(
-          text: c.text,
-          style: PackageText.withWeightAxis(
-            const TextStyle(
-              fontFamily: PackageText.family,
-              fontFamilyFallback: PackageText.fallback,
-              fontSize: 15,
-              color: Color(0xFFFFFFFF),
-              height: 1.25,
-            ).merge(c.style),
+  static void _paintCallout(
+    Canvas canvas,
+    Size view,
+    Callout c,
+    Rect target,
+    TextDirection textDirection,
+  ) {
+    const margin = 12.0, arrow = 9.0, gap = 4.0;
+    const pad = EdgeInsets.symmetric(horizontal: 14, vertical: 10);
+    final text =
+        TextPainter(
+          text: TextSpan(
+            text: c.text,
+            style: PackageText.withWeightAxis(
+              const TextStyle(
+                fontFamily: PackageText.family,
+                fontFamilyFallback: PackageText.fallback,
+                fontSize: 15,
+                color: Color(0xFFFFFFFF),
+                height: 1.25,
+              ).merge(c.style),
+            ),
           ),
-        ),
-        textDirection: textDirection,
-        textAlign: TextAlign.center,
-      )..layout(
-        maxWidth:
-            math.min(c.maxWidth, view.width - 2 * margin) - pad.horizontal,
+          textDirection: textDirection,
+          textAlign: TextAlign.center,
+        )..layout(
+          maxWidth:
+              math.min(c.maxWidth, view.width - 2 * margin) - pad.horizontal,
+        );
+    final bubbleSize = Size(
+      text.width + pad.horizontal,
+      text.height + pad.vertical,
+    );
+
+    final above = switch (c.placement) {
+      CalloutPlacement.above => true,
+      CalloutPlacement.below => false,
+      CalloutPlacement.auto => target.center.dy > view.height / 2,
+    };
+    final left = (target.center.dx - bubbleSize.width / 2)
+        .clamp(margin, math.max(margin, view.width - margin - bubbleSize.width))
+        .toDouble();
+    final top = above
+        ? target.top - gap - arrow - bubbleSize.height
+        : target.bottom + gap + arrow;
+    final bubble = RRect.fromRectAndRadius(
+      Offset(left, top) & bubbleSize,
+      const Radius.circular(12),
+    );
+
+    // The arrow keeps clear of the rounded corners.
+    final tipX = target.center.dx
+        .clamp(bubble.left + 20, bubble.right - 20)
+        .toDouble();
+    final baseY = above ? bubble.bottom : bubble.top;
+    final tipY = above ? baseY + arrow : baseY - arrow;
+    final path = Path()
+      ..addRRect(bubble)
+      ..moveTo(tipX - arrow, baseY)
+      ..lineTo(tipX, tipY)
+      ..lineTo(tipX + arrow, baseY)
+      ..close();
+
+    canvas.drawShadow(path, const Color(0xFF000000), 6, false);
+    canvas.drawPath(path, Paint()..color = c.color);
+    text.paint(canvas, bubble.outerRect.topLeft + Offset(pad.left, pad.top));
+  }
+
+  static void _paintLift(
+    Canvas canvas,
+    Lift lift,
+    Rect target,
+    CapturedScreen captured,
+    ScreenPlacement placement,
+  ) {
+    final region = lift.padding.inflateRect(target);
+    final src = Rect.fromPoints(
+      captured.viewToImage(region.topLeft),
+      captured.viewToImage(region.bottomRight),
+    );
+    final perPoint = placement.canvasPerPoint * lift.scale;
+    final local = Rect.fromCenter(
+      center: Offset.zero,
+      width: region.width * perPoint,
+      height: region.height * perPoint,
+    );
+    final shape = RRect.fromRectAndRadius(
+      local,
+      Radius.circular(lift.radius * perPoint),
+    );
+    final centre = placement.viewToCanvas(region.center);
+
+    // In place: centred where the widget is, turned with the device.
+    canvas
+      ..save()
+      ..translate(centre.dx, centre.dy)
+      ..rotate(placement.angle);
+    if (lift.elevation > 0) {
+      canvas.drawShadow(
+        Path()..addRRect(shape),
+        const Color(0xFF000000),
+        lift.elevation * placement.canvasPerPoint,
+        false,
       );
-  final bubbleSize = Size(
-    text.width + pad.horizontal,
-    text.height + pad.vertical,
-  );
+    }
+    canvas
+      ..clipRRect(shape)
+      ..drawImageRect(
+        captured.image,
+        src,
+        local,
+        Paint()..filterQuality = FilterQuality.high,
+      )
+      ..restore();
+  }
 
-  final above = switch (c.placement) {
-    CalloutPlacement.above => true,
-    CalloutPlacement.below => false,
-    CalloutPlacement.auto => target.center.dy > view.height / 2,
-  };
-  final left = (target.center.dx - bubbleSize.width / 2)
-      .clamp(margin, math.max(margin, view.width - margin - bubbleSize.width))
-      .toDouble();
-  final top = above
-      ? target.top - gap - arrow - bubbleSize.height
-      : target.bottom + gap + arrow;
-  final bubble = RRect.fromRectAndRadius(
-    Offset(left, top) & bubbleSize,
-    const Radius.circular(12),
-  );
+  static void _paintMagnifier(
+    Canvas canvas,
+    MagnifierInset m,
+    Rect target,
+    CapturedScreen captured,
+    ScreenPlacement placement,
+    Size output,
+  ) {
+    final outputPerLogical = placement.canvasPerPoint;
+    var region = m.padding.inflateRect(target);
+    if (m.shape == MagnifierShape.circle) {
+      region = Rect.fromCircle(
+        center: region.center,
+        radius: region.longestSide / 2,
+      );
+    }
+    final src = Rect.fromPoints(
+      captured.viewToImage(region.topLeft),
+      captured.viewToImage(region.bottomRight),
+    );
 
-  // The arrow keeps clear of the rounded corners.
-  final tipX = target.center.dx
-      .clamp(bubble.left + 20, bubble.right - 20)
-      .toDouble();
-  final baseY = above ? bubble.bottom : bubble.top;
-  final tipY = above ? baseY + arrow : baseY - arrow;
-  final path = Path()
-    ..addRRect(bubble)
-    ..moveTo(tipX - arrow, baseY)
-    ..lineTo(tipX, tipY)
-    ..lineTo(tipX + arrow, baseY)
-    ..close();
+    final border = m.borderWidth * outputPerLogical;
+    const margin = 8.0;
+    // A full-width row at 1.4x is wider than the canvas; shrink the zoom
+    // rather than cropping the inset at the edges.
+    final fit = math.min(
+      (output.width - 2 * (border + margin)) / region.width,
+      (output.height - 2 * (border + margin)) / region.height,
+    );
+    final scale = math.min(outputPerLogical * m.zoom, fit);
+    final size = region.size * scale;
+    var centre =
+        placement.viewToCanvas(region.center) + m.offset * outputPerLogical;
+    centre = Offset(
+      _clampCentre(centre.dx, size.width / 2 + border + margin, output.width),
+      _clampCentre(centre.dy, size.height / 2 + border + margin, output.height),
+    );
+    final dst = Rect.fromCenter(
+      center: centre,
+      width: size.width,
+      height: size.height,
+    );
 
-  canvas.drawShadow(path, const Color(0xFF000000), 6, false);
-  canvas.drawPath(path, Paint()..color = c.color);
-  text.paint(canvas, bubble.outerRect.topLeft + Offset(pad.left, pad.top));
-}
+    Path outline(Rect r, double extra) => m.shape == MagnifierShape.circle
+        ? (Path()..addOval(r))
+        : (Path()..addRRect(
+            RRect.fromRectAndRadius(
+              r,
+              Radius.circular(m.radius * outputPerLogical + extra),
+            ),
+          ));
+    final shape = outline(dst, 0);
+    final outer = outline(dst.inflate(border), border);
 
-void _paintLift(
-  Canvas canvas,
-  Lift lift,
-  Rect target,
-  CapturedScreen captured,
-  ScreenPlacement placement,
-) {
-  final region = lift.padding.inflateRect(target);
-  final src = Rect.fromPoints(
-    captured.viewToImage(region.topLeft),
-    captured.viewToImage(region.bottomRight),
-  );
-  final perPoint = placement.canvasPerPoint * lift.scale;
-  final local = Rect.fromCenter(
-    center: Offset.zero,
-    width: region.width * perPoint,
-    height: region.height * perPoint,
-  );
-  final shape = RRect.fromRectAndRadius(
-    local,
-    Radius.circular(lift.radius * perPoint),
-  );
-  final centre = placement.viewToCanvas(region.center);
-
-  // In place: centred where the widget is, turned with the device.
-  canvas
-    ..save()
-    ..translate(centre.dx, centre.dy)
-    ..rotate(placement.angle);
-  if (lift.elevation > 0) {
     canvas.drawShadow(
-      Path()..addRRect(shape),
+      outer,
       const Color(0xFF000000),
-      lift.elevation * placement.canvasPerPoint,
+      12 * outputPerLogical,
       false,
     );
+    canvas.drawPath(outer, Paint()..color = m.borderColor);
+    canvas
+      ..save()
+      ..clipPath(shape)
+      ..drawImageRect(
+        captured.image,
+        src,
+        dst,
+        Paint()..filterQuality = FilterQuality.high,
+      )
+      ..restore();
   }
-  canvas
-    ..clipRRect(shape)
-    ..drawImageRect(
-      captured.image,
-      src,
-      local,
-      Paint()..filterQuality = FilterQuality.high,
-    )
-    ..restore();
+
+  static double _clampCentre(double value, double half, double extent) =>
+      half * 2 >= extent
+      ? extent / 2
+      : value.clamp(half, extent - half).toDouble();
 }
-
-void _paintMagnifier(
-  Canvas canvas,
-  MagnifierInset m,
-  Rect target,
-  CapturedScreen captured,
-  ScreenPlacement placement,
-  Size output,
-) {
-  final outputPerLogical = placement.canvasPerPoint;
-  var region = m.padding.inflateRect(target);
-  if (m.shape == MagnifierShape.circle) {
-    region = Rect.fromCircle(
-      center: region.center,
-      radius: region.longestSide / 2,
-    );
-  }
-  final src = Rect.fromPoints(
-    captured.viewToImage(region.topLeft),
-    captured.viewToImage(region.bottomRight),
-  );
-
-  final border = m.borderWidth * outputPerLogical;
-  const margin = 8.0;
-  // A full-width row at 1.4x is wider than the canvas; shrink the zoom
-  // rather than cropping the inset at the edges.
-  final fit = math.min(
-    (output.width - 2 * (border + margin)) / region.width,
-    (output.height - 2 * (border + margin)) / region.height,
-  );
-  final scale = math.min(outputPerLogical * m.zoom, fit);
-  final size = region.size * scale;
-  var centre =
-      placement.viewToCanvas(region.center) + m.offset * outputPerLogical;
-  centre = Offset(
-    _clampCentre(centre.dx, size.width / 2 + border + margin, output.width),
-    _clampCentre(centre.dy, size.height / 2 + border + margin, output.height),
-  );
-  final dst = Rect.fromCenter(
-    center: centre,
-    width: size.width,
-    height: size.height,
-  );
-
-  Path outline(Rect r, double extra) => m.shape == MagnifierShape.circle
-      ? (Path()..addOval(r))
-      : (Path()..addRRect(
-          RRect.fromRectAndRadius(
-            r,
-            Radius.circular(m.radius * outputPerLogical + extra),
-          ),
-        ));
-  final shape = outline(dst, 0);
-  final outer = outline(dst.inflate(border), border);
-
-  canvas.drawShadow(
-    outer,
-    const Color(0xFF000000),
-    12 * outputPerLogical,
-    false,
-  );
-  canvas.drawPath(outer, Paint()..color = m.borderColor);
-  canvas
-    ..save()
-    ..clipPath(shape)
-    ..drawImageRect(
-      captured.image,
-      src,
-      dst,
-      Paint()..filterQuality = FilterQuality.high,
-    )
-    ..restore();
-}
-
-double _clampCentre(double value, double half, double extent) =>
-    half * 2 >= extent
-    ? extent / 2
-    : value.clamp(half, extent - half).toDouble();
