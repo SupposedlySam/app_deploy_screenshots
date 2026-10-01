@@ -127,6 +127,31 @@ void main() {
       );
     });
 
+    test('opt-in presets have the sizes each store slot asks for', () {
+      expect(Device.playStorePhoneTall.pixelSize, const Size(1080, 2400));
+      expect(Device.playStoreWear.pixelSize, const Size(454, 454));
+      expect(Device.playStoreChromebook.pixelSize, const Size(1920, 1080));
+      // Wear OS: 1:1, at least 384 px. Chromebook: 16:9, at least 1080 px.
+      expect(
+        Device.playStoreWear.pixelSize.shortestSide,
+        greaterThanOrEqualTo(384),
+      );
+      expect(
+        Device.playStoreChromebook.pixelSize.aspectRatio,
+        closeTo(16 / 9, 1e-9),
+      );
+      // Opt-in: none of them changes what forStores writes by default.
+      for (final d in [
+        Device.playStorePhoneTall,
+        Device.playStoreWear,
+        Device.playStoreChromebook,
+      ]) {
+        expect(Device.playStore, isNot(contains(d)));
+      }
+      // The tall phone breaks Play's written 2:1 rule, and the check says so.
+      expect(Device.playStorePhoneTall.meetsPlayStoreRequirements(), isFalse);
+    });
+
     test('Play presets pass the Play rules and 20:9 phones do not', () {
       expect(
         Device.playStore.every((d) => d.meetsPlayStoreRequirements()),
@@ -547,6 +572,45 @@ void main() {
       // Control: the default has no cutout, only the status bar's grey.
       expect(plain.fraction(area, isDark, step: 2), 0);
       expect(detailed.fraction(area, isDark, step: 2), greaterThan(0.9));
+    });
+
+    testWidgets('detailed() adds side buttons past the bezel edge', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const _Blocks());
+      Future<DecodedPng> render(String file, DeviceStyle style) => framed(
+        tester,
+        file,
+        MarketingFrame(background: white, device: style),
+      );
+      // Just outside the device's right edge, at power-button height.
+      final p = FrameGeometry.plan(
+        frame: const MarketingFrame(device: DeviceStyle.detailed()),
+        canvasSize: phone.pixelSize,
+        screen: ScreenSize(
+          imageSize: phone.pixelSize,
+          viewRect: Offset.zero & phone.size,
+        ),
+        captionHeight: 0,
+      );
+      final outer = p.screen!.rect.inflate(p.bezelWidth);
+      final edge = Rect.fromLTWH(
+        outer.right + 1,
+        outer.top + outer.height * 0.30,
+        2.5 * p.screen!.canvasPerPoint - 2,
+        outer.height * 0.04,
+      );
+      bool painted(Color c) => c.r < 0.6;
+      final plain = await render(
+        'buttons_off',
+        const DeviceStyle(shadow: null),
+      );
+      final detailed = await render(
+        'buttons_on',
+        const DeviceStyle.detailed(shadow: null),
+      );
+      expect(plain.fraction(edge, painted, step: 1), 0, reason: 'control');
+      expect(detailed.fraction(edge, painted, step: 1), greaterThan(0.9));
     });
 
     testWidgets('ScreenCrop.belowStatusBar leaves the status bar out', (

@@ -27,6 +27,7 @@ final class DeviceStyle {
     this.shadow = const DeviceShadow(),
     this.crop = ScreenCrop.none,
     this.fadeOut = 0,
+    this.buttons = false,
   }) : assert(fadeOut >= 0 && fadeOut <= 1);
 
   /// The screen alone: no bezel by default. Every option is still
@@ -40,11 +41,12 @@ final class DeviceStyle {
     this.shadow = const DeviceShadow(),
     this.crop = ScreenCrop.none,
     this.fadeOut = 0,
+    this.buttons = false,
   }) : assert(fadeOut >= 0 && fadeOut <= 1);
 
   /// A bezel with the device's camera cutout (Dynamic Island, notch or
-  /// punch-hole, chosen from the device), for a closer likeness to the
-  /// phone. Every option is still available.
+  /// punch-hole, chosen from the device) and side buttons, for a closer
+  /// likeness to the phone. Every option is still available.
   const DeviceStyle.detailed({
     this.bezel = const DeviceBezel(),
     this.cornerRadius,
@@ -54,6 +56,7 @@ final class DeviceStyle {
     this.shadow = const DeviceShadow(),
     this.crop = ScreenCrop.none,
     this.fadeOut = 0,
+    this.buttons = true,
   }) : assert(fadeOut >= 0 && fadeOut <= 1);
 
   /// The frame around the screen, or null for none.
@@ -82,6 +85,10 @@ final class DeviceStyle {
   /// the device's height the fade covers, 0 for none.
   final double fadeOut;
 
+  /// Side buttons drawn on the bezel's edges: power and volume, placed for
+  /// the device's platform. Needs a [bezel].
+  final bool buttons;
+
   @override
   bool operator ==(Object other) =>
       other is DeviceStyle &&
@@ -92,7 +99,8 @@ final class DeviceStyle {
       other.glow == glow &&
       other.shadow == shadow &&
       other.crop == crop &&
-      other.fadeOut == fadeOut;
+      other.fadeOut == fadeOut &&
+      other.buttons == buttons;
 
   @override
   int get hashCode => Object.hash(
@@ -104,6 +112,7 @@ final class DeviceStyle {
     shadow,
     crop,
     fadeOut,
+    buttons,
   );
 }
 

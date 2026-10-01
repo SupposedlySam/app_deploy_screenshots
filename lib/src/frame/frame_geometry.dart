@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
-import 'frame_resolution.dart';
 import 'package:flutter/painting.dart';
 
+import 'frame_resolution.dart';
 import 'marketing_frame.dart';
 
 /// Where the screen sits on the canvas, and how to map points onto it.

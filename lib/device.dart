@@ -47,12 +47,12 @@ enum DeviceType { phone, tablet, chromebook, tv, wear }
 /// Check these locations for the latest specs:
 /// Apple: https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications/
 /// Google: https://support.google.com/googleplay/android-developer/answer/9866151?hl=en&sjid=9437801895573353493-NA#zippy=%2Cscreenshots
-class Device {
+final class Device {
   /// This [Device] is a configuration for golden test. Can be provided for [multiScreenGolden]
   const Device({
     required this.size,
     required this.name,
-    required this.displaySize,
+    this.displaySize,
     required this.platform,
     this.devicePixelRatio = 1.0,
     this.textScale = 1.0,
@@ -98,7 +98,6 @@ class Device {
   static const Device playStorePhone = Device(
     name: 'play_store_phone',
     size: Size(432, 768),
-    displaySize: DisplaySize.sixOne,
     platform: DevicePlatform.android,
     devicePixelRatio: 2.5,
     safeArea: EdgeInsets.only(top: 24),
@@ -108,7 +107,6 @@ class Device {
   static const Device playStoreTablet7 = Device(
     name: 'play_store_tablet_7',
     size: Size(612, 1088),
-    displaySize: DisplaySize.sixNine,
     platform: DevicePlatform.android,
     devicePixelRatio: 2.0,
     safeArea: EdgeInsets.only(top: 24),
@@ -118,10 +116,44 @@ class Device {
   static const Device playStoreTablet10 = Device(
     name: 'play_store_tablet_10',
     size: Size(810, 1440),
-    displaySize: DisplaySize.tenFive,
     platform: DevicePlatform.android,
     devicePixelRatio: 2.0,
     safeArea: EdgeInsets.only(top: 24),
+  );
+
+  /// Google Play phone at 1080 × 2400 (20:9), a modern phone's native
+  /// shape.
+  ///
+  /// Not in [playStore]. Play's written rule is that the long side be at
+  /// most twice the short side, which this breaks (2.22:1), so
+  /// [meetsPlayStoreRequirements] says no; but several top apps have
+  /// screenshots this tall live on Play. Prefer [playStorePhone] (9:16),
+  /// which also qualifies for promotional placement.
+  static const Device playStorePhoneTall = Device(
+    name: 'play_store_phone_tall',
+    size: Size(360, 800),
+    platform: DevicePlatform.android,
+    devicePixelRatio: 3.0,
+    safeArea: EdgeInsets.only(top: 24),
+  );
+
+  /// Google Play Wear OS: 454 × 454 (1:1). Play asks for square
+  /// screenshots of at least 384 × 384 and no device frames, so capture
+  /// these raw, without a `MarketingFrame`. Play applies its own round
+  /// mask.
+  static const Device playStoreWear = Device(
+    name: 'play_store_wear',
+    size: Size(227, 227),
+    platform: DevicePlatform.android,
+    devicePixelRatio: 2.0,
+  );
+
+  /// Google Play Chromebook: 1920 × 1080 (16:9 landscape).
+  static const Device playStoreChromebook = Device(
+    name: 'play_store_chromebook',
+    size: Size(1280, 720),
+    platform: DevicePlatform.android,
+    devicePixelRatio: 1.5,
   );
 
   /// The sizes App Store Connect requires: iPhone 6.9" and iPad 13".
@@ -390,7 +422,7 @@ class Device {
   final EdgeInsets safeArea;
 
   /// [displaySize] specify display size
-  final DisplaySize displaySize;
+  final DisplaySize? displaySize;
 
   /// [platform] specify platform
   final DevicePlatform platform;

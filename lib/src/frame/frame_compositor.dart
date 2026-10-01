@@ -1,14 +1,15 @@
 import 'dart:ui' as ui;
 
-import 'frame_resolution.dart';
 import 'package:flutter/painting.dart';
 
-import 'annotation_painter.dart';
+import '../../device.dart';
 import '../capture/captured_screen.dart';
+import 'annotation_painter.dart';
 import 'caption_layout.dart';
 import 'device_style.dart';
 import 'frame_decoration.dart';
 import 'frame_geometry.dart';
+import 'frame_resolution.dart';
 import 'marketing_frame.dart';
 
 /// A finished frame: the canvas image and what was measured on it.
@@ -278,6 +279,9 @@ class _DeviceLayer implements FrameLayer {
       );
     }
     if (style.bezel case final bezel?) {
+      if (style.buttons) {
+        _paintButtons(canvas, outer, device.platform, perPoint, bezel.color);
+      }
       canvas.drawRRect(outer, Paint()..color = bezel.color);
     }
 
@@ -330,6 +334,48 @@ class _DeviceLayer implements FrameLayer {
         ..restore();
     }
     canvas.restore();
+  }
+
+  /// Draws side buttons sticking out of [outer] by 2.5 pt: on iPhone the
+  /// action and volume buttons on the left and power on the right; on
+  /// Android, power and volume on the right. Positions are fractions of the
+  /// device height, so they suit any size.
+  static void _paintButtons(
+    Canvas canvas,
+    RRect outer,
+    DevicePlatform platform,
+    double perPoint,
+    Color bezel,
+  ) {
+    final paint = Paint()
+      ..color = Color.lerp(bezel, const Color(0xFF808080), 0.25)!;
+    final depth = 2.5 * perPoint;
+    final h = outer.height;
+    void button(bool left, double from, double to) {
+      final x = left ? outer.left - depth : outer.right - depth;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(
+            x,
+            outer.top + h * from,
+            x + depth * 2,
+            outer.top + h * to,
+          ),
+          Radius.circular(depth),
+        ),
+        paint,
+      );
+    }
+
+    if (platform == DevicePlatform.ios) {
+      button(true, 0.17, 0.21); // action
+      button(true, 0.25, 0.32); // volume up
+      button(true, 0.34, 0.41); // volume down
+      button(false, 0.26, 0.37); // power
+    } else {
+      button(false, 0.20, 0.27); // power
+      button(false, 0.31, 0.43); // volume
+    }
   }
 
   /// Draws [shape] at the top centre of [screen], sized in device points.

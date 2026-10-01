@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'frame/frame_resolution.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -9,11 +8,12 @@ import 'capture/capture_request.dart';
 import 'capture/capture_session.dart';
 import 'capture/screen_capturer.dart';
 import 'capture/widget_renderer.dart';
-import 'frame/frame_decoration.dart';
-import 'frame/frame_geometry.dart';
-import 'frame/marketing_frame.dart';
 import 'frame/device_style.dart';
 import 'frame/frame_compositor.dart';
+import 'frame/frame_decoration.dart';
+import 'frame/frame_geometry.dart';
+import 'frame/frame_resolution.dart';
+import 'frame/marketing_frame.dart';
 import 'frame/screen_overlays.dart';
 import 'output/report.dart';
 import 'output/slide_writer.dart';
