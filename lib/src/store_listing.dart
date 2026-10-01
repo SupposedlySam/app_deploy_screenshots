@@ -6,6 +6,7 @@ import 'annotations.dart';
 import 'capture/capture_request.dart';
 import 'capture/capture_session.dart';
 import 'capture/screen_capturer.dart';
+import 'device_mockup.dart';
 import 'frame/marketing_frame.dart';
 import 'output/manifest_report.dart';
 import 'output/output_layout.dart';
@@ -171,6 +172,57 @@ class StoreListing {
       theme: theme?.call(context),
     ),
   );
+
+  /// A panorama across `names.length` consecutive slides. See
+  /// `AppDeployScreenshots.panoramaForStores`.
+  Future<List<ScreenshotRecord>> panorama({
+    required List<String> names,
+    required WidgetSlideBuilder builder,
+    Size referenceSize = const Size(440, 956),
+    Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+    ThemeData Function(ScreenshotContext shot)? theme,
+  }) async {
+    final order = _next;
+    _next += names.length;
+    final written = await _pipeline.panoramaAll(
+      tester,
+      names: names,
+      builder: builder,
+      devices: devices,
+      variants: variants,
+      output: output,
+      order: order,
+      referenceSize: referenceSize,
+      localizationsDelegates: localizationsDelegates,
+      theme: theme,
+    );
+    _records.addAll(written);
+    return written;
+  }
+
+  /// Captures the app on the listing's devices and variants and returns the
+  /// screens, for [DeviceMockup]s in a [widget] or [panorama] slide. See
+  /// `AppDeployScreenshots.captureScreens`.
+  Future<ScreenCaptures> captureScreens({
+    Finder? finder,
+    List<ScreenshotAnnotation> annotations = const [],
+    StatusBarOverlay? statusBar,
+    CustomPump? customPump,
+    DeviceSetup? deviceSetup,
+  }) {
+    return _pipeline.captureAll(
+      tester,
+      devices: devices,
+      variants: variants,
+      request: CaptureRequest(
+        finder: finder,
+        customPump: customPump ?? this.customPump,
+        deviceSetup: deviceSetup ?? this.deviceSetup,
+        statusBar: statusBar ?? this.statusBar,
+        annotations: annotations,
+      ),
+    );
+  }
 
   /// Writes the manifest and contact sheets for this listing's [output],
   /// and checks Google Play's 20% text guidance. See

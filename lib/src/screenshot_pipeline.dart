@@ -8,6 +8,8 @@ import 'capture/capture_request.dart';
 import 'capture/capture_session.dart';
 import 'capture/screen_capturer.dart';
 import 'capture/widget_renderer.dart';
+import '../device.dart';
+import 'device_mockup.dart';
 import 'frame/device_style.dart';
 import 'frame/frame_compositor.dart';
 import 'frame/frame_decoration.dart';
@@ -15,6 +17,7 @@ import 'frame/frame_geometry.dart';
 import 'frame/frame_resolution.dart';
 import 'frame/marketing_frame.dart';
 import 'frame/screen_overlays.dart';
+import 'output/output_layout.dart';
 import 'output/report.dart';
 import 'output/slide_writer.dart';
 import 'variant.dart';
@@ -108,6 +111,103 @@ class ScreenshotPipeline {
     }
   }
 
+  /// Captures the app as [context] describes, with the status bar and every
+  /// annotation drawn on the screen, and returns it instead of writing it.
+  Future<DeviceScreen> captureScreen(
+    WidgetTester tester,
+    ScreenshotContext context,
+    CaptureRequest request,
+  ) async {
+    final captured = await capturer.capture(tester, context, request);
+    try {
+      final image = (await tester.runAsync(
+        () => ScreenOverlays.apply(
+          captured,
+          statusBar: request.statusBar,
+          includeCanvasAnnotations: true,
+        ),
+      ))!;
+      return DeviceScreen(image, captured.device, captured.viewRect);
+    } finally {
+      captured.dispose();
+    }
+  }
+
+  /// [captureScreen] for every device and variant. The captures are freed
+  /// when the test ends.
+  Future<ScreenCaptures> captureAll(
+    WidgetTester tester, {
+    required List<Device> devices,
+    required List<ScreenshotVariant> variants,
+    required CaptureRequest request,
+  }) async {
+    final screens = <(String, ScreenshotVariant), DeviceScreen>{};
+    final captures = ScreenCaptures(screens);
+    addTearDown(captures.dispose);
+    for (final device in devices) {
+      for (final variant in variants) {
+        screens[(device.name, variant)] = await captureScreen(
+          tester,
+          ScreenshotContext(
+            name: 'capture',
+            device: variant.applyTo(device),
+            variant: variant,
+          ),
+          request,
+        );
+      }
+    }
+    return captures;
+  }
+
+  /// [panorama] for every device and variant: [names] left to right,
+  /// numbered from [order].
+  Future<List<ScreenshotRecord>> panoramaAll(
+    WidgetTester tester, {
+    required List<String> names,
+    required WidgetSlideBuilder builder,
+    required List<Device> devices,
+    required List<ScreenshotVariant> variants,
+    required OutputLayout output,
+    required int order,
+    Size referenceSize = const Size(440, 956),
+    Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+    ThemeData Function(ScreenshotContext shot)? theme,
+  }) async {
+    assert(names.length >= 2, 'a panorama spans at least two slides');
+    assert(order > 0, 'order starts at 1');
+    final records = <ScreenshotRecord>[];
+    for (final device in devices) {
+      for (final variant in variants) {
+        final context = ScreenshotContext(
+          name: names.first,
+          device: variant.applyTo(device),
+          variant: variant,
+          order: order,
+          source: ScreenshotSource.widget,
+          canvasSize: device.pixelSize,
+        );
+        final slices = [
+          for (var i = 0; i < names.length; i++)
+            context.copyWith(name: names[i], order: order + i),
+        ];
+        records.addAll(
+          await panorama(
+            tester,
+            context,
+            slices,
+            builder,
+            paths: [for (final s in slices) output.pathFor(s.device, s)],
+            referenceSize: referenceSize,
+            localizationsDelegates: localizationsDelegates,
+            theme: theme?.call(context),
+          ),
+        );
+      }
+    }
+    return records;
+  }
+
   /// Renders [builder] as a whole slide at [context]'s canvas size.
   ///
   /// The widget is laid out in points of [referenceSize] scaled by canvas
@@ -146,6 +246,71 @@ class ScreenshotPipeline {
         source: ScreenshotSource.widget,
       ),
     ))!;
+  }
+
+  /// Renders [builder] once across [slices].length canvases side by side and
+  /// writes each slice as its own screenshot: [slices] gives each one's
+  /// context (name and order), [paths] where it goes.
+  Future<List<ScreenshotRecord>> panorama(
+    WidgetTester tester,
+    ScreenshotContext context,
+    List<ScreenshotContext> slices,
+    WidgetSlideBuilder builder, {
+    required List<String> paths,
+    Size referenceSize = const Size(440, 956),
+    Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+    ThemeData? theme,
+  }) async {
+    assert(slices.length == paths.length && slices.isNotEmpty);
+    final canvas = context.canvasSize!;
+    final unit = math.sqrt(
+      canvas.width *
+          canvas.height /
+          (referenceSize.width * referenceSize.height),
+    );
+    final whole = Size(canvas.width * slices.length, canvas.height);
+    final wide = context.copyWith(canvasSize: whole);
+    final image = await renderer.render(
+      tester,
+      Builder(builder: (c) => builder(c, wide)),
+      logicalSize: whole / unit,
+      pixelRatio: unit,
+      brightness: context.brightness,
+      locale: context.locale,
+      localizationsDelegates: localizationsDelegates,
+      theme: theme,
+    );
+    try {
+      return (await tester.runAsync(() async {
+        final records = <ScreenshotRecord>[];
+        for (var i = 0; i < slices.length; i++) {
+          final recorder = ui.PictureRecorder();
+          Canvas(recorder).drawImageRect(
+            image,
+            Rect.fromLTWH(canvas.width * i, 0, canvas.width, canvas.height),
+            Offset.zero & canvas,
+            Paint(),
+          );
+          final picture = recorder.endRecording();
+          final slice = await picture.toImage(
+            canvas.width.toInt(),
+            canvas.height.toInt(),
+          );
+          picture.dispose();
+          records.add(
+            await writer.write(
+              slices[i],
+              slice,
+              path: paths[i],
+              source: ScreenshotSource.widget,
+            ),
+          );
+        }
+        return records;
+      }))!;
+    } finally {
+      image.dispose();
+    }
   }
 
   /// Composes [frame] with no device: background, caption and decorations.

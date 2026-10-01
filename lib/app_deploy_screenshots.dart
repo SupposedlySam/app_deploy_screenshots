@@ -8,6 +8,7 @@ import 'package:app_deploy_screenshots/src/annotations.dart';
 import 'package:app_deploy_screenshots/src/capture/capture_session.dart';
 import 'package:app_deploy_screenshots/src/capture/capture_request.dart';
 import 'package:app_deploy_screenshots/src/capture/screen_capturer.dart';
+import 'package:app_deploy_screenshots/src/device_mockup.dart';
 import 'package:app_deploy_screenshots/src/screenshot_pipeline.dart';
 import 'package:app_deploy_screenshots/src/shot_loop.dart';
 
@@ -34,6 +35,7 @@ export 'src/annotations.dart'
         MagnifierShape,
         Lift;
 export 'src/capture/screen_capturer.dart' show CustomPump, DeviceSetup;
+export 'src/device_mockup.dart' show DeviceMockup, DeviceScreen, ScreenCaptures;
 export 'src/frame/device_style.dart'
     show
         DeviceStyle,
@@ -348,6 +350,87 @@ class AppDeployScreenshots {
         (root == null
             ? const OutputLayout.folders()
             : OutputLayout.folders(root));
+  }
+
+  /// Renders one widget across several consecutive slides: a panorama that
+  /// continues from one store screenshot to the next. [names] are the
+  /// slides, left to right, numbered from [order]; the builder draws the
+  /// whole strip, `names.length` canvases wide (`shot.canvasSize` is the
+  /// strip's size), and each canvas-wide piece is written as its own
+  /// screenshot.
+  ///
+  /// ```dart
+  /// await AppDeployScreenshots.panoramaForStores(
+  ///   tester,
+  ///   names: ['plan', 'book', 'go'],
+  ///   order: 2,
+  ///   builder: (context, shot) => Stack(children: [
+  ///     const Positioned.fill(child: BrandBackground()),
+  ///     // A device straddling slides 1 and 2:
+  ///     Positioned(left: 300, top: 220, width: 280,
+  ///         child: DeviceMockup(screen: home.of(shot))),
+  ///   ]),
+  /// );
+  /// ```
+  ///
+  /// Layout is in points of [referenceSize] per slide, so the strip is
+  /// `names.length * 440` points wide by default.
+  static Future<List<ScreenshotRecord>> panoramaForStores(
+    WidgetTester tester, {
+    required List<String> names,
+    required WidgetSlideBuilder builder,
+    List<Device> devices = const [...Device.appStore, ...Device.playStore],
+    OutputLayout output = const OutputLayout.folders(),
+    List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
+    int order = 1,
+    Size referenceSize = const Size(440, 956),
+    Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+    ThemeData Function(ScreenshotContext shot)? theme,
+  }) {
+    return _pipeline.panoramaAll(
+      tester,
+      names: names,
+      builder: builder,
+      devices: devices,
+      variants: variants,
+      output: output,
+      order: order,
+      referenceSize: referenceSize,
+      localizationsDelegates: localizationsDelegates,
+      theme: theme,
+    );
+  }
+
+  /// Captures the app on each of [devices] and [variants] and returns the
+  /// screens instead of writing them, for laying out in a widget slide with
+  /// [DeviceMockup]: two devices side by side, a before/after pair, or one
+  /// device crossing a panorama.
+  ///
+  /// The status bar and [annotations] are drawn on each screen. Capture the
+  /// same devices and variants the slide renders, so `captures.of(shot)`
+  /// finds each one. The images are freed when the test ends.
+  static Future<ScreenCaptures> captureScreens(
+    WidgetTester tester, {
+    List<Device> devices = const [...Device.appStore, ...Device.playStore],
+    List<ScreenshotVariant> variants = const [ScreenshotVariant.none],
+    Finder? finder,
+    CustomPump? customPump,
+    DeviceSetup? deviceSetup,
+    StatusBarOverlay? statusBar,
+    List<ScreenshotAnnotation> annotations = const [],
+  }) {
+    return _pipeline.captureAll(
+      tester,
+      devices: devices,
+      variants: variants,
+      request: CaptureRequest(
+        finder: finder,
+        customPump: customPump,
+        deviceSetup: deviceSetup,
+        statusBar: statusBar,
+        annotations: annotations,
+      ),
+    );
   }
 
   /// The directory screenshots are written to unless a path says otherwise.
