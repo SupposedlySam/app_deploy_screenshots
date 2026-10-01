@@ -39,7 +39,8 @@ enum DisplaySize {
   String toString() => label;
 }
 
-/// Represents standard device display sizes and types
+/// The kind of device a [Device] is. Store upload folders that sort
+/// screenshots by kind, such as fastlane supply's, use it.
 enum DeviceType { phone, tablet, chromebook, tv, wear }
 
 /// This [Device] is a configuration for golden test. Can be provided for [multiScreenGolden]
@@ -59,6 +60,7 @@ final class Device {
     this.brightness = Brightness.light,
     this.safeArea = const EdgeInsets.all(0),
     this.screenCornerRadius = 0,
+    this.type,
   });
 
   /// iPhone 6.9" App Store size: 1320 × 2868 px (iPhone 16 Pro Max).
@@ -73,6 +75,7 @@ final class Device {
     devicePixelRatio: 3.0,
     safeArea: EdgeInsets.only(top: 62, bottom: 34),
     screenCornerRadius: 55,
+    type: DeviceType.phone,
   );
 
   /// iPad 13" App Store size: 2064 × 2752 px (iPad Pro M4).
@@ -86,6 +89,7 @@ final class Device {
     devicePixelRatio: 2.0,
     safeArea: EdgeInsets.only(top: 24, bottom: 20),
     screenCornerRadius: 18,
+    type: DeviceType.tablet,
   );
 
   /// Google Play phone size: 1080 × 1920 px (9:16).
@@ -101,6 +105,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 2.5,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.phone,
   );
 
   /// Google Play 7" tablet size: 1224 × 2176 px (9:16), 612 dp wide.
@@ -110,6 +115,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 2.0,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.tablet,
   );
 
   /// Google Play 10" tablet size: 1620 × 2880 px (9:16), 810 dp wide.
@@ -119,6 +125,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 2.0,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.tablet,
   );
 
   /// Google Play phone at 1080 × 2400 (20:9), a modern phone's native
@@ -135,6 +142,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.phone,
   );
 
   /// Google Play Wear OS: 454 × 454 (1:1). Play asks for square
@@ -146,6 +154,7 @@ final class Device {
     size: Size(227, 227),
     platform: DevicePlatform.android,
     devicePixelRatio: 2.0,
+    type: DeviceType.wear,
   );
 
   /// Google Play Chromebook: 1920 × 1080 (16:9 landscape).
@@ -154,6 +163,7 @@ final class Device {
     size: Size(1280, 720),
     platform: DevicePlatform.android,
     devicePixelRatio: 1.5,
+    type: DeviceType.chromebook,
   );
 
   /// The sizes App Store Connect requires: iPhone 6.9" and iPad 13".
@@ -304,6 +314,7 @@ final class Device {
     size: Size(1920, 1080),
     displaySize: DisplaySize.thirteen, // Using largest size for TV
     platform: DevicePlatform.ios,
+    type: DeviceType.tv,
   );
 
   /// Apple Vision Pro
@@ -314,7 +325,7 @@ final class Device {
     platform: DevicePlatform.ios,
   );
 
-  /// Android Phone Screenshots - 16:9 aspect ratio
+  /// Android phone, 16:9 landscape: 1920 × 1080 px.
   static const Device androidPhoneWide = Device(
     name: 'android_phone_16_9',
     size: Size(640, 360), // 1920/3, 1080/3
@@ -334,20 +345,25 @@ final class Device {
     safeArea: EdgeInsets.only(top: 24),
   );
 
-  /// Android Phone Screenshots - 18:9 aspect ratio
+  /// Android phone, 18:9 portrait: 1080 × 2160 px.
+  ///
+  /// Before 2.0 this was landscape (2160 × 1080) despite its name.
   static const Device androidPhoneTall = Device(
     name: 'android_phone_18_9',
-    size: Size(720, 360), // 2160/3, 1080/3
+    size: Size(360, 720), // 1080/3, 2160/3
     displaySize: DisplaySize.sixThree,
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
     safeArea: EdgeInsets.only(top: 24),
   );
 
-  /// Android Phone Screenshots - 20:9 aspect ratio
+  /// Android phone, 20:9 portrait: 1080 × 2400 px. Taller than Play's
+  /// written 2:1 limit; see [playStorePhoneTall].
+  ///
+  /// Before 2.0 this was landscape (2400 × 1080) despite its name.
   static const Device androidPhoneExtra = Device(
     name: 'android_phone_20_9',
-    size: Size(800, 360), // 2400/3, 1080/3
+    size: Size(360, 800), // 1080/3, 2400/3
     displaySize: DisplaySize.sixFive,
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
@@ -362,6 +378,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 2.0,
     safeArea: EdgeInsets.only(top: 24),
+    type: DeviceType.tablet,
   );
 
   /// Android TV Screenshots - 16:9 aspect ratio
@@ -372,6 +389,7 @@ final class Device {
     platform: DevicePlatform.android,
     devicePixelRatio: 1.0,
     safeArea: EdgeInsets.zero,
+    type: DeviceType.tv,
   );
 
   static const List<Device> allDevices = [
@@ -431,6 +449,12 @@ final class Device {
   /// `MarketingFrame` draws the screen. 0 means square corners.
   final double screenCornerRadius;
 
+  /// What kind of device this is. `OutputLayout.fastlane` files Android
+  /// screenshots by it (phone, 7" or 10" tablet, TV, Wear OS). Null: worked
+  /// out from [size], where 600 dp across is a tablet and a small square a
+  /// watch, so a TV or Chromebook needs it set.
+  final DeviceType? type;
+
   /// The size of a full-screen capture, in pixels.
   Size get pixelSize => size * devicePixelRatio;
 
@@ -463,6 +487,7 @@ final class Device {
     DisplaySize? displaySize,
     DevicePlatform? platform,
     double? screenCornerRadius,
+    DeviceType? type,
   }) {
     return Device(
       size: size ?? this.size,
@@ -474,6 +499,7 @@ final class Device {
       displaySize: displaySize ?? this.displaySize,
       platform: platform ?? this.platform,
       screenCornerRadius: screenCornerRadius ?? this.screenCornerRadius,
+      type: type ?? this.type,
     );
   }
 

@@ -18,8 +18,9 @@ abstract final class AnnotationPainter {
   static void paintOnScreen(
     Canvas canvas,
     Size view,
-    List<ResolvedAnnotation> resolved,
-  ) {
+    List<ResolvedAnnotation> resolved, {
+    TextDirection textDirection = TextDirection.ltr,
+  }) {
     final spotlights = <(Spotlight, Rect)>[];
     final callouts = <(Callout, Rect)>[];
     for (final r in resolved) {
@@ -47,7 +48,7 @@ abstract final class AnnotationPainter {
       canvas.drawPath(scrim, Paint()..color = spotlights.first.$1.scrim);
     }
     for (final (c, rect) in callouts) {
-      _paintCallout(canvas, view, c, rect);
+      _paintCallout(canvas, view, c, rect, textDirection);
     }
   }
 
@@ -72,7 +73,13 @@ abstract final class AnnotationPainter {
   }
 }
 
-void _paintCallout(Canvas canvas, Size view, Callout c, Rect target) {
+void _paintCallout(
+  Canvas canvas,
+  Size view,
+  Callout c,
+  Rect target,
+  TextDirection textDirection,
+) {
   const margin = 12.0, arrow = 9.0, gap = 4.0;
   const pad = EdgeInsets.symmetric(horizontal: 14, vertical: 10);
   final text =
@@ -89,7 +96,7 @@ void _paintCallout(Canvas canvas, Size view, Callout c, Rect target) {
             ).merge(c.style),
           ),
         ),
-        textDirection: TextDirection.ltr,
+        textDirection: textDirection,
         textAlign: TextAlign.center,
       )..layout(
         maxWidth:

@@ -49,14 +49,84 @@ void main() {
       );
     });
 
-    test('chooses the supply folder from the device size', () {
-      String folder(Device d) => path(fastlane, d).split('/')[5];
+    String folder(Device d) => path(fastlane, d).split('/')[5];
+
+    test('chooses the supply folder from the device type', () {
       expect(folder(Device.playStorePhone), 'phoneScreenshots');
       expect(folder(Device.playStorePhoneTall), 'phoneScreenshots');
       expect(folder(Device.playStoreTablet7), 'sevenInchScreenshots');
       expect(folder(Device.playStoreTablet10), 'tenInchScreenshots');
       expect(folder(Device.playStoreWear), 'wearScreenshots');
-      expect(folder(Device.playStoreChromebook), 'tenInchScreenshots');
+      // 960 dp across: a size-only guess would call it a 10" tablet.
+      expect(folder(Device.androidTV), 'tvScreenshots');
+    });
+
+    test('falls back to the size for a device without a type', () {
+      Device custom(double w, double h) => Device(
+        name: 'custom',
+        size: Size(w, h),
+        platform: DevicePlatform.android,
+      );
+      expect(folder(custom(400, 800)), 'phoneScreenshots');
+      expect(folder(custom(600, 960)), 'sevenInchScreenshots');
+      expect(folder(custom(800, 1280)), 'tenInchScreenshots');
+      expect(folder(custom(200, 200)), 'wearScreenshots');
+    });
+
+    test('refuses what supply would misfile, before capturing', () {
+      expect(
+        () => fastlane.check(
+          const [Device.playStoreChromebook],
+          const [ScreenshotVariant.none],
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('no Chromebook screenshot folder'),
+          ),
+        ),
+      );
+      // Light and dark of one locale would both upload.
+      expect(
+        () => fastlane.check(
+          const [Device.playStorePhone],
+          [ScreenshotVariant.light, ScreenshotVariant.dark],
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('en-US folder'),
+          ),
+        ),
+      );
+      // The control: one variant per locale, on every store device.
+      fastlane.check(
+        const [...Device.appStore, ...Device.playStore],
+        ScreenshotVariant.matrix(
+          brightnesses: const [Brightness.dark],
+          locales: const [Locale('en', 'US'), Locale('fr', 'FR')],
+        ),
+      );
+      // Folders hold anything.
+      const OutputLayout.folders().check(
+        const [Device.playStoreChromebook],
+        const [ScreenshotVariant.light, ScreenshotVariant.dark],
+      );
+    });
+
+    testWidgets('StoreListing checks its layout when it is made', (
+      tester,
+    ) async {
+      expect(
+        () => StoreListing(
+          tester,
+          output: fastlane,
+          variants: const [ScreenshotVariant.light, ScreenshotVariant.dark],
+        ),
+        throwsArgumentError,
+      );
     });
   });
 

@@ -73,6 +73,7 @@ class ScreenshotPipeline {
               ? null
               : request.statusBar,
           includeCanvasAnnotations: frame == null,
+          textDirection: WidgetRenderer.directionOf(context.locale),
         );
         if (frame == null) return writer.write(context, screen, path: path);
 
@@ -84,6 +85,7 @@ class ScreenshotPipeline {
                 frame.canvasSize ??
                 Size(screen.width.toDouble(), screen.height.toDouble()),
             widgetImages: widgets,
+            textDirection: WidgetRenderer.directionOf(context.locale),
             screen: FrameScreen(
               image: screen,
               captured: captured,
@@ -125,6 +127,7 @@ class ScreenshotPipeline {
           captured,
           statusBar: request.statusBar,
           includeCanvasAnnotations: true,
+          textDirection: WidgetRenderer.directionOf(context.locale),
         ),
       ))!;
       return DeviceScreen(image, captured.device, captured.viewRect);
@@ -176,6 +179,7 @@ class ScreenshotPipeline {
   }) async {
     assert(names.length >= 2, 'a panorama spans at least two slides');
     assert(order > 0, 'order starts at 1');
+    output.check(devices, variants);
     final records = <ScreenshotRecord>[];
     for (final device in devices) {
       for (final variant in variants) {

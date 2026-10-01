@@ -87,6 +87,38 @@ void main() {
     expect(png.fraction(Rect.fromLTWH(0, 600, w, 600), isBlue), 1);
   });
 
+  testWidgets(
+    'a framed screenshot lays its caption out in the locale direction',
+    (tester) async {
+      await pumpApp(tester);
+      final listing = StoreListing(
+        tester,
+        devices: const [Device.appStoreIphone69],
+        output: OutputLayout.folders('$root/direction'),
+        variants: const [
+          ScreenshotVariant(locale: Locale('en')),
+          ScreenshotVariant(locale: Locale('ar')),
+        ],
+        frame: brand,
+        customPump: (t) => t.pump(),
+      );
+      final records = await listing.screenshot(
+        'start',
+        caption: const Caption(headline: 'Hi', textAlign: TextAlign.start),
+      );
+      final ltr = await DecodedPng.read(tester, records[0].path);
+      final rtl = await DecodedPng.read(tester, records[1].path);
+      final w = ltr.width.toDouble();
+      double side(DecodedPng png, double left) =>
+          png.fraction(Rect.fromLTWH(left, 0, w / 2, 500), isWhite, step: 2);
+      // Start is left in English (the control) and right in Arabic.
+      expect(side(ltr, 0), greaterThan(0.002));
+      expect(side(ltr, w / 2), 0);
+      expect(side(rtl, w / 2), greaterThan(0.002));
+      expect(side(rtl, 0), 0);
+    },
+  );
+
   testWidgets('writeReport writes the manifest for the listing output', (
     tester,
   ) async {

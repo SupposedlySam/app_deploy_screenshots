@@ -60,7 +60,9 @@ class StoreListing {
   }) : assert(devices.isNotEmpty),
        assert(variants.isNotEmpty),
        assert(firstOrder > 0, 'order starts at 1'),
-       _next = firstOrder;
+       _next = firstOrder {
+    output.check(devices, variants);
+  }
 
   final WidgetTester tester;
   final List<Device> devices;

@@ -212,7 +212,7 @@ class AppDeployScreenshots {
     tester,
     name,
     devices: devices,
-    pathFor: _layout(output, root).pathFor,
+    pathFor: (_layout(output, root)..check(devices, variants)).pathFor,
     finder: finder,
     customPump: customPump,
     deviceSetup: deviceSetup,
@@ -259,6 +259,7 @@ class AppDeployScreenshots {
     ThemeData Function(ScreenshotContext shot)? theme,
   }) => ShotLoop.run(
     name,
+    output: output,
     devices: devices,
     variants: variants,
     order: order,
@@ -306,6 +307,7 @@ class AppDeployScreenshots {
     int? order,
   }) => ShotLoop.run(
     name,
+    output: output,
     devices: devices,
     variants: variants,
     order: order,

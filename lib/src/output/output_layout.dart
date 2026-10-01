@@ -26,15 +26,20 @@ sealed class OutputLayout {
   ///   deliver tells devices apart by pixel size.
   /// * Android:
   ///   `<root>/metadata/android/<locale>/images/phoneScreenshots/01_home.png`,
-  ///   with `sevenInchScreenshots`, `tenInchScreenshots` and
-  ///   `wearScreenshots` chosen from the device's size.
+  ///   with `sevenInchScreenshots`, `tenInchScreenshots`, `tvScreenshots`
+  ///   and `wearScreenshots` chosen by the device's `Device.type` (or its
+  ///   size, when it has none). supply has no Chromebook folder, so a
+  ///   Chromebook device is an error here: write those with
+  ///   [OutputLayout.folders] and upload them by hand.
   ///
   /// The locale folder is the variant's locale as a language tag, or
   /// [defaultLocale] for screenshots without one. Use full tags the stores
   /// know, such as `Locale('fr', 'FR')` for `fr-FR`. Both tools upload in
-  /// file name order, which the order prefix sets. Each folder replaces the
-  /// store's current screenshots, so give each upload one brightness: a
-  /// `.dark` variant would be uploaded as an extra screenshot.
+  /// file name order, which the order prefix sets.
+  ///
+  /// Each folder replaces the store's current screenshots, so it is an error
+  /// for two variants to share a locale (light and dark of `fr-FR`, say):
+  /// both would upload. Write the other brightness to another root.
   const factory OutputLayout.fastlane({String root, String defaultLocale}) =
       _Fastlane;
 
@@ -45,6 +50,11 @@ sealed class OutputLayout {
   /// The file for [context] on [device]. Not part of the public API.
   @internal
   String pathFor(Device device, ScreenshotContext context);
+
+  /// Throws if this layout can't hold [variants] on [devices], before
+  /// anything is captured. Not part of the public API.
+  @internal
+  void check(List<Device> devices, List<ScreenshotVariant> variants) {}
 }
 
 final class _Folders extends OutputLayout {
@@ -89,17 +99,59 @@ final class _Fastlane extends OutputLayout {
         '${androidFolder(device)}/$stem.png';
   }
 
-  /// supply's folder for [device], from its size: square and small is a
-  /// watch, 600 dp or more across is a tablet (720 dp or more a 10-inch).
+  @override
+  void check(List<Device> devices, List<ScreenshotVariant> variants) {
+    for (final device in devices) {
+      if (device.platform == DevicePlatform.android &&
+          device.type == DeviceType.chromebook) {
+        throw ArgumentError(
+          'fastlane supply has no Chromebook screenshot folder, so '
+          '${device.name} can\'t be written with OutputLayout.fastlane(). '
+          'Capture it with OutputLayout.folders() and upload it in the Play '
+          'Console.',
+        );
+      }
+    }
+    final byLocale = <String, List<ScreenshotVariant>>{};
+    for (final v in variants) {
+      (byLocale[v.locale?.toLanguageTag() ?? defaultLocale] ??= []).add(v);
+    }
+    for (final MapEntry(key: locale, value: shared) in byLocale.entries) {
+      if (shared.length > 1) {
+        throw ArgumentError(
+          'With OutputLayout.fastlane(), $shared would all be written to the '
+          '$locale folder, and fastlane uploads every file there as another '
+          'screenshot. Use one variant per locale, and write the others '
+          '(dark mode, say) to OutputLayout.folders() or another root.',
+        );
+      }
+    }
+  }
+
+  /// supply's folder for [device]: from its `Device.type`, or, without
+  /// one, its size: square and small is a watch, 600 dp or more across a
+  /// tablet (720 dp or more a 10-inch).
   @visibleForTesting
   static String androidFolder(Device device) {
     final shortest = device.size.shortestSide;
-    if (device.size.width == device.size.height && shortest < 400) {
-      return 'wearScreenshots';
-    }
-    if (shortest >= 720) return 'tenInchScreenshots';
-    if (shortest >= 600) return 'sevenInchScreenshots';
-    return 'phoneScreenshots';
+    final type =
+        device.type ??
+        switch (shortest) {
+          _ when device.size.width == device.size.height && shortest < 400 =>
+            DeviceType.wear,
+          >= 600 => DeviceType.tablet,
+          _ => DeviceType.phone,
+        };
+    return switch (type) {
+      DeviceType.phone => 'phoneScreenshots',
+      DeviceType.tablet =>
+        shortest >= 720 ? 'tenInchScreenshots' : 'sevenInchScreenshots',
+      DeviceType.tv => 'tvScreenshots',
+      DeviceType.wear => 'wearScreenshots',
+      DeviceType.chromebook => throw ArgumentError(
+        'fastlane supply has no Chromebook screenshot folder.',
+      ),
+    };
   }
 
   @override

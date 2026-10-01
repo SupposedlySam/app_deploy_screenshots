@@ -18,6 +18,7 @@ abstract final class ScreenOverlays {
     CapturedScreen captured, {
     StatusBarOverlay? statusBar,
     bool includeCanvasAnnotations = false,
+    TextDirection textDirection = TextDirection.ltr,
   }) async {
     final raw = captured.image;
     final imageSize = Size(raw.width.toDouble(), raw.height.toDouble());
@@ -32,6 +33,7 @@ abstract final class ScreenOverlays {
       canvas,
       captured.viewSize,
       captured.annotations,
+      textDirection: textDirection,
     );
     canvas.restore();
     if (includeCanvasAnnotations) {
