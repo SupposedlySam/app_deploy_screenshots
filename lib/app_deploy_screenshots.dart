@@ -1,19 +1,18 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_deploy_screenshots/device.dart';
-import 'package:app_deploy_screenshots/extensions.dart';
 import 'package:app_deploy_screenshots/src/annotations.dart';
-import 'package:app_deploy_screenshots/src/marketing_frame.dart';
-import 'package:app_deploy_screenshots/src/png_encoder.dart';
-import 'package:app_deploy_screenshots/src/report.dart';
+import 'package:app_deploy_screenshots/src/capture/capture_session.dart';
+import 'package:app_deploy_screenshots/src/capture/screen_capturer.dart';
+import 'package:app_deploy_screenshots/src/frame/marketing_frame.dart';
+import 'package:app_deploy_screenshots/src/output/output_paths.dart';
+import 'package:app_deploy_screenshots/src/output/report.dart';
+import 'package:app_deploy_screenshots/src/output/slide_writer.dart';
+import 'package:app_deploy_screenshots/src/setup/channel_mocks.dart';
+import 'package:app_deploy_screenshots/src/setup/fonts.dart';
 import 'package:app_deploy_screenshots/src/status_bar.dart';
 import 'package:app_deploy_screenshots/src/variant.dart';
 
@@ -27,7 +26,8 @@ export 'src/annotations.dart'
         CalloutPlacement,
         MagnifierInset,
         MagnifierShape;
-export 'src/marketing_frame.dart'
+export 'src/capture/screen_capturer.dart' show CustomPump, DeviceSetup;
+export 'src/frame/marketing_frame.dart'
     show
         ScreenshotFrame,
         MarketingFrame,
@@ -35,31 +35,23 @@ export 'src/marketing_frame.dart'
         FrameBackground,
         Caption,
         DeviceBezel;
-export 'src/png_encoder.dart' show encodeOpaquePng;
-export 'src/report.dart' show ScreenshotRecord;
+export 'src/output/png_encoder.dart' show encodeOpaquePng;
+export 'src/output/report.dart' show ScreenshotRecord, SlideKind;
+export 'src/setup/fonts.dart' show TestAssetBundle;
 export 'src/status_bar.dart' show StatusBarOverlay;
 export 'src/variant.dart' show ScreenshotVariant, ScreenshotContext;
-
-///CustomPump is a function that lets you do custom pumping before golden evaluation.
-///Sometimes, you want to do a golden test for different stages of animations, so its crucial to have a precise control over pumps and durations
-typedef CustomPump = Future<void> Function(WidgetTester);
-
-/// Function definition for allowing for device or test setup to occur for each device configuration under test
-typedef DeviceSetup = Future<void> Function(Device device, WidgetTester tester);
 
 /// Function definition for allowing for custom file name building
 typedef FileNameBuilder = String Function(Device device);
 
+/// Store screenshots from widget tests.
+///
+/// The static methods here are the whole public surface. They delegate to
+/// the capture pipeline in `src/`: setup, capture, framing and output.
 class AppDeployScreenshots {
-  static const List<String> _overridableFonts = [
-    'Roboto',
-    'GoogleSans',
-    'GoogleSansDisplay',
-    '.SF UI Display',
-    '.SF UI Text',
-    '.SF Pro Text',
-    '.SF Pro Display',
-  ];
+  static final _session = CaptureSession.shared;
+  static final _capturer = ScreenCapturer(_session);
+  static final _writer = SlideWriter(_session);
 
   /// Comprehensive setup for screenshot tests with font loading and configuration
   ///
@@ -76,18 +68,14 @@ class AppDeployScreenshots {
     bool loadEmojiFont = true,
   }) async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    if (verbose) debugPrint('🚀 Initializing screenshot test environment...');
 
-    _verbosePrint('🚀 Initializing screenshot test environment...', verbose);
-
-    // Load fonts for better text rendering
-    if (loadFonts) {
-      await loadAppFonts(verbose: verbose, skipOnError: true);
-    }
+    if (loadFonts) await loadAppFonts(verbose: verbose, skipOnError: true);
 
     if (loadEmojiFont) {
       try {
         await AppDeployScreenshots.loadEmojiFont();
-        _verbosePrint('  ✅ Loaded emoji font $emojiFontFamily', verbose);
+        if (verbose) debugPrint('  ✅ Loaded emoji font $emojiFontFamily');
       } catch (e) {
         // Printed even when not verbose: emoji would silently render as
         // boxes, and nothing else would say why.
@@ -95,12 +83,9 @@ class AppDeployScreenshots {
       }
     }
 
-    // Mock common platform channels that might interfere with tests
-    if (mockPlatformChannels) {
-      _setupCommonChannelMocks(verbose: verbose);
-    }
+    if (mockPlatformChannels) ChannelMocks.install(verbose: verbose);
 
-    _verbosePrint('✅ Screenshot test environment ready!', verbose);
+    if (verbose) debugPrint('✅ Screenshot test environment ready!');
   }
 
   /// Font family of the bundled monochrome emoji font (Noto Emoji, SIL Open
@@ -112,85 +97,35 @@ class AppDeployScreenshots {
   ///
   /// ```dart
   /// ThemeData(
-  ///   textTheme: ...,
   ///   fontFamilyFallback: const [AppDeployScreenshots.emojiFontFamily],
   /// )
   /// ```
   ///
   /// This is safe to leave in a production theme. On a device the family
   /// does not exist, so it is skipped and the system emoji font is used.
-  static const String emojiFontFamily = 'AppDeployScreenshotsEmoji';
+  static const String emojiFontFamily = FontSetup.emojiFontFamily;
 
   /// Loads [emojiFontFamily]. [initialize] calls this by default.
-  ///
-  /// The font ships inside the package's `lib/` and is read from disk, not
-  /// declared under `flutter: fonts:`. A font declared there would be
-  /// bundled into every app that depends on this package, and at 2 MB that
-  /// is too much to add to a release build for a test-only feature.
-  static Future<void> loadEmojiFont() async {
-    final lib = _packageLibDirectory();
-    final bytes = await File(
-      '${lib.path}/src/fonts/NotoEmoji.ttf',
-    ).readAsBytes();
-    final loader = FontLoader(emojiFontFamily)
-      ..addFont(Future.value(ByteData.sublistView(bytes)));
-    await loader.load();
-  }
-
-  /// This package's `lib/` directory, found through the nearest
-  /// `.dart_tool/package_config.json` above the working directory.
-  ///
-  /// `Isolate.resolvePackageUri` would be the obvious call, but
-  /// `flutter_tester` throws `Unsupported operation` for it. `flutter test`
-  /// runs from the package root, and pub workspaces keep the config at the
-  /// workspace root, so walking up covers both.
-  static Directory _packageLibDirectory() {
-    for (Directory? dir = Directory.current; dir != null;) {
-      final config = File('${dir.path}/.dart_tool/package_config.json');
-      if (config.existsSync()) {
-        final lib = packageLibFromConfig(
-          config.uri,
-          jsonDecode(config.readAsStringSync()),
-          'app_deploy_screenshots',
-        );
-        if (lib == null) {
-          throw StateError('app_deploy_screenshots is not in ${config.path}');
-        }
-        return Directory.fromUri(lib);
-      }
-      final parent = dir.parent;
-      dir = parent.path == dir.path ? null : parent;
-    }
-    throw StateError(
-      'No .dart_tool/package_config.json above ${Directory.current.path}',
-    );
-  }
+  static Future<void> loadEmojiFont() => FontSetup.loadEmojiFont();
 
   /// The `lib/` directory of [package] in a parsed `package_config.json`
   /// found at [configUri], or null if it is not listed.
-  ///
-  /// `rootUri` is written with a trailing slash for the package itself
-  /// (`../`) and without one for path dependencies
-  /// (`../../../app_deploy_screenshots`). Resolving against the second as-is
-  /// replaces its last segment instead of descending into it, so both URIs
-  /// are normalised to directories first.
   @visibleForTesting
   static Uri? packageLibFromConfig(
     Uri configUri,
     Object? json,
     String package,
-  ) {
-    if (json is! Map || json['packages'] is! List) {
-      throw FormatException('Unrecognised package_config.json', '$configUri');
-    }
-    for (final p in (json['packages'] as List).cast<Map>()) {
-      if (p['name'] != package) continue;
-      String dir(String path) => path.endsWith('/') ? path : '$path/';
-      final root = configUri.resolve(dir(p['rootUri'] as String));
-      return root.resolve(dir((p['packageUri'] as String?) ?? 'lib/'));
-    }
-    return null;
-  }
+  ) => FontSetup.packageLibFromConfig(configUri, json, package);
+
+  /// Loads every font in the app's `FontManifest.json`, so text renders in
+  /// real typefaces instead of the test font's black boxes.
+  ///
+  /// [verbose] - If true, prints detailed information about font loading progress
+  /// [skipOnError] - If true, continues loading other fonts even if one fails
+  static Future<void> loadAppFonts({
+    bool verbose = false,
+    bool skipOnError = true,
+  }) => FontSetup.loadAppFonts(verbose: verbose, skipOnError: skipOnError);
 
   /// Captures [name] on every iOS and Android device in [Device.allDevices],
   /// into `app_deploy_screenshots/<platform>/<size>_<device>/`.
@@ -213,30 +148,26 @@ class AppDeployScreenshots {
     StatusBarOverlay? statusBar,
     List<ScreenshotAnnotation> annotations = const [],
     ScreenshotFrame? frame,
-  }) {
-    final platformDevices = [
+  }) => _captureAll(
+    tester,
+    name,
+    devices: [
       DevicePlatform.ios,
       DevicePlatform.android,
-    ].expand(Device.byPlatform).toList();
-
-    return byDevices(
-      tester,
-      name,
-      finder: finder,
-      customPump: customPump,
-      deviceSetup: deviceSetup,
-      devices: platformDevices,
-      fileNameBuilder:
-          fileNameBuilder ??
-          (device) =>
-              'app_deploy_screenshots/${device.platform.name}/${device.displaySize.label}_${device.name}/$name.png',
-      variants: variants,
-      order: order,
-      statusBar: statusBar,
-      annotations: annotations,
-      frame: frame,
-    );
-  }
+    ].expand(Device.byPlatform).toList(),
+    pathFor: fileNameBuilder == null
+        ? OutputPaths.platform
+        : (device, context) =>
+              OutputPaths.decorate(fileNameBuilder(context.device), context),
+    finder: finder,
+    customPump: customPump,
+    deviceSetup: deviceSetup,
+    variants: variants,
+    order: order,
+    statusBar: statusBar,
+    annotations: annotations,
+    frame: frame,
+  );
 
   /// Captures [name] at the exact pixel sizes App Store Connect and Google
   /// Play ask for ([Device.appStore] and [Device.playStore]), into
@@ -256,26 +187,23 @@ class AppDeployScreenshots {
     StatusBarOverlay? statusBar,
     List<ScreenshotAnnotation> annotations = const [],
     ScreenshotFrame? frame,
-  }) {
-    return byDevices(
-      tester,
-      name,
-      devices: devices,
-      finder: finder,
-      customPump: customPump,
-      deviceSetup: deviceSetup,
-      fileNameBuilder: (device) =>
-          '$root/${device.platform.name}/${device.name}/$name.png',
-      variants: variants,
-      order: order,
-      statusBar: statusBar,
-      annotations: annotations,
-      frame: frame,
-    );
-  }
+  }) => _captureAll(
+    tester,
+    name,
+    devices: devices,
+    pathFor: (device, context) => OutputPaths.store(root, device, context),
+    finder: finder,
+    customPump: customPump,
+    deviceSetup: deviceSetup,
+    variants: variants,
+    order: order,
+    statusBar: statusBar,
+    annotations: annotations,
+    frame: frame,
+  );
 
   /// The directory screenshots are written to unless a path says otherwise.
-  static const String defaultRoot = 'app_deploy_screenshots';
+  static const String defaultRoot = OutputPaths.defaultRoot;
 
   /// Captures [name] on each of [devices] (default: iPhone 16 Pro and iPad
   /// Pro M4), once per variant.
@@ -313,64 +241,25 @@ class AppDeployScreenshots {
     StatusBarOverlay? statusBar,
     List<ScreenshotAnnotation> annotations = const [],
     ScreenshotFrame? frame,
-  }) async {
+  }) {
     assert(devices == null || devices.isNotEmpty);
-    assert(variants.isNotEmpty);
-    assert(order == null || order > 0, 'order starts at 1');
-    final defaultDevices = [Device.iphone16Pro, Device.ipadProM4];
-    final records = <ScreenshotRecord>[];
-
-    // Images are primed per device inside [byDevice], after its pumps. Priming
-    // once up front is not enough: a widget laid out again at a new device
-    // size (a list tile, a `ResizeImage` keyed by width) requests a new image
-    // that nobody waits for, and the capture shows an empty placeholder.
-    for (final device in devices ?? defaultDevices) {
-      for (final variant in variants) {
-        final context = ScreenshotContext(
-          name: name,
-          device: variant.applyTo(device),
-          variant: variant,
-          order: order,
-        );
-        final path = fileNameBuilder == null
-            ? '$defaultRoot/${device.name}.${context.fileStem}.png'
-            : _withStem(fileNameBuilder(context.device), context);
-        records.add(
-          await byDevice(
-            tester,
-            name,
-            customPump: customPump,
-            deviceSetup: deviceSetup,
-            finder: finder,
-            device: device,
-            fileName: path,
-            variant: variant,
-            order: order,
-            statusBar: statusBar,
-            annotations: annotations,
-            frame: frame,
-          ),
-        );
-      }
-    }
-    return records;
-  }
-
-  /// Replaces the file name in [path] with the context's stem, keeping the
-  /// directory: `a/b/home.png` becomes `a/b/01_home.dark.png`.
-  static String _withStem(String path, ScreenshotContext context) {
-    if (context.order == null && context.variant.suffix.isEmpty) return path;
-    final slash = path.lastIndexOf('/');
-    final dir = path.substring(0, slash + 1);
-    var base = path.substring(slash + 1);
-    if (base.endsWith('.png')) base = base.substring(0, base.length - 4);
-    final prefix = context.order == null
-        ? ''
-        : '${context.order.toString().padLeft(2, '0')}_';
-    final suffix = context.variant.suffix.isEmpty
-        ? ''
-        : '.${context.variant.suffix}';
-    return '$dir$prefix$base$suffix.png';
+    return _captureAll(
+      tester,
+      name,
+      devices: devices ?? const [Device.iphone16Pro, Device.ipadProM4],
+      pathFor: fileNameBuilder == null
+          ? OutputPaths.flat
+          : (device, context) =>
+                OutputPaths.decorate(fileNameBuilder(context.device), context),
+      finder: finder,
+      customPump: customPump,
+      deviceSetup: deviceSetup,
+      variants: variants,
+      order: order,
+      statusBar: statusBar,
+      annotations: annotations,
+      frame: frame,
+    );
   }
 
   /// Captures one screenshot of [device] to [fileName].
@@ -402,212 +291,82 @@ class AppDeployScreenshots {
       !name.endsWith('.png'),
       'Screenshot names should not include file type',
     );
-
     final context = ScreenshotContext(
       name: name,
       device: variant.applyTo(device),
       variant: variant,
       order: order,
     );
-    late ScreenshotRecord record;
-
-    Future<void> body() async {
-      final locale = variant.locale;
-      if (locale != null) tester.platformDispatcher.localesTestValue = [locale];
-      // flutter_test replaces every elevation shadow with a solid black
-      // outline (`debugDisableShadows`), which suits goldens but puts a black
-      // ring around every card and FAB in store artwork. Draw real shadows
-      // while capturing, and put the test's setting back afterwards.
-      final shadowsWereDisabled = debugDisableShadows;
-      debugDisableShadows = false;
-      _markTreeNeedsPaint(tester);
-      try {
-        // A brightness change animates the theme, and the animations chain:
-        // `AnimatedTheme` runs 200 ms, and only when it lands does
-        // `Material`'s `AnimatedDefaultTextStyle` start its own 200 ms
-        // towards the new text colour. With a fixed customPump a capture
-        // lands mid-way (washed-out colours, text in the previous theme's
-        // colour). One long pump is not enough: it finishes the first
-        // animation in a single frame and the second only starts there. So
-        // step through in frames. pumpAndSettle is no answer either, since
-        // many apps never settle.
-        if (_lastBrightness != context.device.brightness) {
-          for (var t = Duration.zero; t < _themeTransition; t += _frame) {
-            await tester.pump(_frame);
-          }
-          _lastBrightness = context.device.brightness;
-        }
-
-        final deviceSetupPump = deviceSetup ?? _twoPumps;
-
-        await deviceSetupPump(context.device, tester);
-
-        final pumpAfterPrime = customPump ?? _onlyPumpAndSettle;
-
-        await pumpAfterPrime(tester);
-
-        if (waitForImages) {
-          await primeAssets(tester);
-          // Decoding completes outside the frame; one more frame paints it.
-          await tester.pump();
-        }
-
-        record = await _capture(
-          tester,
-          context,
-          fileName: fileName,
-          finder: finder,
-          statusBar: statusBar,
-          annotations: annotations,
-          frame: frame?.resolve(context),
-        );
-      } finally {
-        debugDisableShadows = shadowsWereDisabled;
-        _markTreeNeedsPaint(tester);
-        if (locale != null) tester.platformDispatcher.clearLocalesTestValue();
-      }
-    }
-
-    await (applyDeviceOverrides
-        ? tester.binding.runWithDeviceOverrides(context.device, body: body)
-        : body());
-    screenshotLog.add(record);
-    return record;
+    final captured = await _capturer.capture(
+      tester,
+      context,
+      finder: finder,
+      deviceSetup: deviceSetup,
+      customPump: customPump,
+      waitForImages: waitForImages,
+      applyDeviceOverrides: applyDeviceOverrides,
+      annotations: annotations,
+      statusBar: statusBar,
+    );
+    return (await tester.runAsync(
+      () => _writer.writeScreen(
+        context,
+        captured,
+        path: fileName,
+        statusBar: statusBar,
+        frame: frame?.resolve(context),
+      ),
+    ))!;
   }
 
-  static Future<ScreenshotRecord> _capture(
+  static Future<List<ScreenshotRecord>> _captureAll(
     WidgetTester tester,
-    ScreenshotContext context, {
-    required String fileName,
+    String name, {
+    required List<Device> devices,
+    required String Function(Device device, ScreenshotContext context) pathFor,
     required Finder? finder,
+    required CustomPump? customPump,
+    required DeviceSetup? deviceSetup,
+    required List<ScreenshotVariant> variants,
+    required int? order,
     required StatusBarOverlay? statusBar,
     required List<ScreenshotAnnotation> annotations,
-    required MarketingFrame? frame,
+    required ScreenshotFrame? frame,
   }) async {
-    final device = context.device;
-    // Resolve everything that reads the widget tree now, before leaving the
-    // fake-async zone.
-    final resolved = resolveAnnotations(tester, annotations);
-    final element = (finder ?? find.byWidgetPredicate((w) => true))
-        .evaluate()
-        .first;
-    final boundary = _repaintBoundaryOf(element);
-    final renderView = tester.binding.renderViews.first;
-    final view = tester.view;
-    final viewSize = view.physicalSize / view.devicePixelRatio;
-
-    // The part of the view the capture covers, in logical points.
-    final Rect captured;
-    final Future<ui.Image> imageFuture;
-    if (boundary is RenderView) {
-      captured = Offset.zero & viewSize;
-      imageFuture = captureImage(element);
-    } else {
-      final box = boundary as RenderBox;
-      captured = MatrixUtils.transformRect(
-        box.getTransformTo(null),
-        Offset.zero & box.size,
-      );
-      imageFuture = captureImage(element, pixelRatio: view.devicePixelRatio);
-    }
-
-    final icons =
-        statusBar?.iconBrightness ??
-        statusBarIconsFor(
-          renderView.debugLayer?.find<SystemUiOverlayStyle>(
-            Offset(
-              view.physicalSize.width / 2,
-              device.safeArea.top * view.devicePixelRatio / 2,
-            ),
+    assert(variants.isNotEmpty);
+    assert(order == null || order > 0, 'order starts at 1');
+    final records = <ScreenshotRecord>[];
+    // Images are primed per device inside the capture, after its pumps.
+    // Priming once up front is not enough: a widget laid out again at a new
+    // device size (a list tile, a `ResizeImage` keyed by width) requests a
+    // new image that nobody waits for, and the capture shows a placeholder.
+    for (final device in devices) {
+      for (final variant in variants) {
+        final context = ScreenshotContext(
+          name: name,
+          device: variant.applyTo(device),
+          variant: variant,
+          order: order,
+        );
+        records.add(
+          await byDevice(
+            tester,
+            name,
+            device: device,
+            fileName: pathFor(device, context),
+            finder: finder,
+            customPump: customPump,
+            deviceSetup: deviceSetup,
+            variant: variant,
+            order: order,
+            statusBar: statusBar,
+            annotations: annotations,
+            frame: frame,
           ),
-          device,
-        );
-
-    return (await tester.runAsync(() async {
-      final raw = await imageFuture;
-      final perLogical = raw.width / captured.width;
-
-      // Status bar and on-screen annotations, drawn in view coordinates.
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder)..drawImage(raw, Offset.zero, Paint());
-      canvas
-        ..save()
-        ..scale(perLogical)
-        ..translate(-captured.left, -captured.top);
-      statusBar?.paint(canvas, device, icons: icons);
-      paintScreenAnnotations(canvas, viewSize, resolved);
-      canvas.restore();
-      final hasMagnifiers = resolved.any((r) => r.annotation is MagnifierInset);
-
-      void magnify(
-        Canvas c,
-        Size out,
-        Offset Function(Offset) toOutput,
-        double outPerLogical,
-      ) => paintMagnifiers(
-        c,
-        resolved: resolved,
-        source: raw,
-        sourceRect: captured,
-        sourcePerLogical: perLogical,
-        toOutput: toOutput,
-        outputPerLogical: outPerLogical,
-        output: out,
-      );
-
-      if (frame == null && hasMagnifiers) {
-        magnify(
-          canvas,
-          Size(raw.width.toDouble(), raw.height.toDouble()),
-          (p) => (p - captured.topLeft) * perLogical,
-          perLogical,
         );
       }
-      final picture = recorder.endRecording();
-      final screen = await picture.toImage(raw.width, raw.height);
-      picture.dispose();
-
-      var output = screen;
-      double? captionCoverage;
-      if (frame != null) {
-        final framed = await composeFrame(
-          frame: frame,
-          screen: screen,
-          pointWidth: device.size.width,
-          screenLogicalWidth: captured.width,
-          defaultCornerRadius: device.screenCornerRadius > 0
-              ? device.screenCornerRadius
-              : 16,
-          afterScreen: hasMagnifiers
-              ? (c, size, map, scale) => magnify(
-                  c,
-                  size,
-                  (p) => map((p - captured.topLeft) * perLogical),
-                  perLogical * scale,
-                )
-              : null,
-        );
-        output = framed.image;
-        captionCoverage = framed.captionCoverage;
-        screen.dispose();
-      }
-
-      final bytes = await encodeOpaquePng(output);
-      final file = File(fileName);
-      await file.create(recursive: true);
-      await file.writeAsBytes(bytes);
-      final record = ScreenshotRecord(
-        path: fileName,
-        context: context,
-        width: output.width,
-        height: output.height,
-        framed: frame != null,
-        captionCoverage: captionCoverage,
-      );
-      output.dispose();
-      raw.dispose();
-      return record;
-    }))!;
+    }
+    return records;
   }
 
   /// Writes review material for everything under [root]: `manifest.json`
@@ -631,15 +390,15 @@ class AppDeployScreenshots {
     double? playCaptionCoverageLimit = 0.2,
   }) async {
     Future<void> write() async {
-      if (manifest) await writeManifest(root);
-      if (contactSheets) await writeContactSheets(root, columns: columns);
+      if (manifest) await Manifest.write(root, _session.records);
+      if (contactSheets) await ContactSheets.write(root, columns: columns);
     }
 
     await (tester == null ? write() : tester.runAsync(write));
 
     final limit = playCaptionCoverageLimit;
     if (limit == null || !manifest) return const [];
-    final over = captionCoverageOver(root, limit);
+    final over = Manifest.captionCoverageOver(root, limit);
     for (final (path, coverage) in over) {
       debugPrint(
         '⚠️ app_deploy_screenshots: $path caption covers '
@@ -650,297 +409,17 @@ class AppDeployScreenshots {
     return over;
   }
 
-  static RenderObject _repaintBoundaryOf(Element element) {
-    RenderObject? renderObject = element.renderObject;
-    while (renderObject != null && !renderObject.isRepaintBoundary) {
-      renderObject = renderObject.parent;
-    }
-    if (renderObject == null) {
-      throw StateError('No RepaintBoundary found in ancestor chain');
-    }
-    return renderObject;
-  }
-
   /// Render the closest [RepaintBoundary] of the [element] into an image.
   ///
   /// [pixelRatio] is image pixels per logical pixel for a boundary below the
   /// root view. The root view's layer is already in physical pixels.
-  ///
-  /// See also:
-  ///  * [OffsetLayer.toImage] which is the actual method being called.
   static Future<ui.Image> captureImage(
     Element element, {
     double pixelRatio = 1,
-  }) {
-    assert(element.renderObject != null);
+  }) => ScreenCapturer.captureImage(element, pixelRatio: pixelRatio);
 
-    final renderObject = _repaintBoundaryOf(element);
-
-    assert(!renderObject.debugNeedsPaint);
-
-    final layer = renderObject.debugLayer;
-    if (layer is! OffsetLayer) {
-      throw StateError('Expected OffsetLayer but got ${layer.runtimeType}');
-    }
-
-    return layer.toImage(
-      renderObject.paintBounds,
-      pixelRatio: renderObject is RenderView ? 1 : pixelRatio,
-    );
-  }
-
-  ///By default, flutter test only uses a single "test" font called Ahem.
-  ///
-  ///This font is designed to show black spaces for every character and icon. This obviously makes goldens much less valuable.
-  ///
-  ///To make the goldens more useful, we will automatically load any fonts included in your pubspec.yaml as well as from
-  ///packages you depend on.
-  ///
-  /// [verbose] - If true, prints detailed information about font loading progress
-  /// [skipOnError] - If true, continues loading other fonts even if one fails
-  static Future<void> loadAppFonts({
-    bool verbose = false,
-    bool skipOnError = true,
-  }) async {
-    TestWidgetsFlutterBinding.ensureInitialized();
-
-    _verbosePrint('🔤 Loading app fonts for screenshot tests...', verbose);
-
-    try {
-      final fontManifest = await rootBundle
-          .loadStructuredData<Iterable<dynamic>>(
-            'FontManifest.json',
-            (string) async => json.decode(string),
-          );
-
-      int loadedFonts = 0;
-      int failedFonts = 0;
-
-      for (final Map<String, dynamic> font in fontManifest) {
-        final fontFamily = _derivedFontFamily(font);
-        final fontLoader = FontLoader(fontFamily);
-
-        for (final Map<String, dynamic> fontType in font['fonts']) {
-          final asset = fontType['asset'] as String;
-          // URL decode the asset path to handle spaces in filenames (e.g., Font Awesome 7)
-          final decodedAsset = Uri.decodeComponent(asset);
-          _verbosePrint('  Loading font asset: $decodedAsset', verbose);
-
-          try {
-            fontLoader.addFont(rootBundle.load(decodedAsset));
-          } catch (e) {
-            failedFonts++;
-
-            _verbosePrint(
-              '  ⚠️ Failed to load font $decodedAsset: $e',
-              verbose,
-            );
-
-            if (!skipOnError) rethrow;
-          }
-        }
-
-        await fontLoader.load();
-        loadedFonts++;
-
-        _verbosePrint(
-          '  ✅ Successfully loaded font family: $fontFamily',
-          verbose,
-        );
-      }
-
-      _verbosePrint(
-        '✅ Font loading complete: $loadedFonts loaded, $failedFonts failed',
-        verbose,
-      );
-    } catch (e) {
-      _verbosePrint('❌ Font manifest loading failed: $e', verbose);
-
-      if (!skipOnError) rethrow;
-    }
-  }
-
-  /// A function that waits for all [Image] widgets found in the widget tree to finish decoding.
-  ///
-  /// Currently this supports images included via Image widgets, or as part of BoxDecorations.
-  static Future<void> primeAssets(WidgetTester tester) async {
-    final imageElements = find.byType(Image, skipOffstage: false).evaluate();
-    final containerElements = find
-        .byType(DecoratedBox, skipOffstage: false)
-        .evaluate();
-    await tester.runAsync(() async {
-      for (final imageElement in imageElements) {
-        final widget = imageElement.widget;
-        if (widget is Image) {
-          await precacheImage(widget.image, imageElement);
-        }
-      }
-      for (final container in containerElements) {
-        final widget = container.widget as DecoratedBox;
-        final decoration = widget.decoration;
-        if (decoration is BoxDecoration) {
-          if (decoration.image != null) {
-            await precacheImage(decoration.image!.image, container);
-          }
-        }
-      }
-    });
-  }
-
-  /// Sets up common platform channel mocks to prevent test failures
-  static void _setupCommonChannelMocks({bool verbose = false}) {
-    if (verbose) {
-      debugPrint('📱 Setting up platform channel mocks...');
-    }
-
-    // Mock sharing intent plugin (common in many apps)
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('receive_sharing_intent/messages'),
-          (MethodCall methodCall) async {
-            switch (methodCall.method) {
-              case 'getInitialMedia':
-                return '[]';
-              case 'getInitialText':
-                return '';
-              case 'reset':
-                return null;
-              default:
-                return null;
-            }
-          },
-        );
-
-    // Mock sharing intent event channels
-    const codec = StandardMethodCodec();
-
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMessageHandler('receive_sharing_intent/events-media', (
-          ByteData? message,
-        ) async {
-          if (message != null) {
-            final methodCall = codec.decodeMethodCall(message);
-            if (methodCall.method == 'listen') {
-              return codec.encodeSuccessEnvelope('[]');
-            } else if (methodCall.method == 'cancel') {
-              return codec.encodeSuccessEnvelope(null);
-            }
-          }
-          return null;
-        });
-
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMessageHandler('receive_sharing_intent/events-text', (
-          ByteData? message,
-        ) async {
-          if (message != null) {
-            final methodCall = codec.decodeMethodCall(message);
-            if (methodCall.method == 'listen') {
-              return codec.encodeSuccessEnvelope('');
-            } else if (methodCall.method == 'cancel') {
-              return codec.encodeSuccessEnvelope(null);
-            }
-          }
-          return null;
-        });
-
-    // Mock shared preferences (common in apps with settings)
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/shared_preferences'),
-          (MethodCall methodCall) async {
-            switch (methodCall.method) {
-              case 'getAll':
-                return <String, dynamic>{};
-              default:
-                return null;
-            }
-          },
-        );
-
-    if (verbose) {
-      debugPrint('  ✅ Platform channel mocks configured');
-    }
-  }
-
-  static Future<void> _onlyPumpAndSettle(WidgetTester tester) =>
-      tester.pumpAndSettle();
-
-  /// Room for three chained `kThemeAnimationDuration` (200 ms) animations.
-  static const Duration _themeTransition = Duration(milliseconds: 600);
-  static const Duration _frame = Duration(milliseconds: 50);
-
-  /// The brightness of the last capture, to detect a theme transition.
-  static Brightness? _lastBrightness;
-
-  static void _markTreeNeedsPaint(WidgetTester tester) {
-    void visit(RenderObject o) {
-      o.markNeedsPaint();
-      o.visitChildren(visit);
-    }
-
-    for (final view in tester.binding.renderViews) {
-      visit(view);
-    }
-  }
-
-  static Future<void> _twoPumps(Device device, WidgetTester tester) async {
-    await tester.pump();
-    await tester.pump();
-  }
-
-  static void _verbosePrint(String message, bool verbose) {
-    if (verbose) debugPrint(message);
-  }
-
-  /// There is no way to easily load the Roboto or Cupertino fonts.
-  /// To make them available in tests, a package needs to include their own copies of them.
-  ///
-  /// GoldenToolkit supplies Roboto because it is free to use.
-  ///
-  /// However, when a downstream package includes a font, the font family will be prefixed with
-  /// /packages/\<package name\>/\<fontFamily\> in order to disambiguate when multiple packages include
-  /// fonts with the same name.
-  ///
-  /// Ultimately, the font loader will load whatever we tell it, so if we see a font that looks like
-  /// a Material or Cupertino font family, let's treat it as the main font family
-  static String _derivedFontFamily(Map<String, dynamic> fontDefinition) {
-    if (!fontDefinition.containsKey('family')) {
-      return '';
-    }
-
-    final String fontFamily = fontDefinition['family'];
-
-    if (_overridableFonts.contains(fontFamily)) {
-      return fontFamily;
-    }
-
-    if (fontFamily.startsWith('packages/')) {
-      final fontFamilyName = fontFamily.split('/').last;
-      if (_overridableFonts.any((font) => font == fontFamilyName)) {
-        return fontFamilyName;
-      }
-    } else {
-      for (final Map<String, dynamic> fontType in fontDefinition['fonts']) {
-        final String? asset = fontType['asset'];
-        if (asset != null && asset.startsWith('packages')) {
-          final packageName = asset.split('/')[1];
-          return 'packages/$packageName/$fontFamily';
-        }
-      }
-    }
-    return fontFamily;
-  }
-}
-
-class TestAssetBundle extends CachingAssetBundle {
-  @override
-  Future<String> loadString(String key, {bool cache = true}) async {
-    //overriding this method to avoid limit of 10KB per asset
-    final data = await load(key);
-    return utf8.decode(data.buffer.asUint8List());
-  }
-
-  @override
-  Future<ByteData> load(String key) async => rootBundle.load(key);
+  /// Waits for every [Image] widget and [BoxDecoration] image in the tree to
+  /// finish decoding.
+  static Future<void> primeAssets(WidgetTester tester) =>
+      ScreenCapturer.primeAssets(tester);
 }

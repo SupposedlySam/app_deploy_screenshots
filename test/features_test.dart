@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
-import 'package:app_deploy_screenshots/src/png_encoder.dart';
+import 'package:app_deploy_screenshots/src/output/png_encoder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

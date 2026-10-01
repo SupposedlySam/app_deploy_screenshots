@@ -115,11 +115,15 @@ class ScreenshotContext {
   /// The brightness being rendered.
   Brightness get brightness => device.brightness;
 
+  /// `01_` for order 1, or empty without an order.
+  String get orderPrefix =>
+      order == null ? '' : '${order.toString().padLeft(2, '0')}_';
+
+  /// `.dark.fr` for that variant, or empty for [ScreenshotVariant.none].
+  String get variantSuffix =>
+      variant.suffix.isEmpty ? '' : '.${variant.suffix}';
+
   /// The file stem: order prefix, name and variant suffix, e.g.
   /// `01_home.dark`.
-  String get fileStem {
-    final prefix = order == null ? '' : '${order.toString().padLeft(2, '0')}_';
-    final suffix = variant.suffix.isEmpty ? '' : '.${variant.suffix}';
-    return '$prefix$name$suffix';
-  }
+  String get fileStem => '$orderPrefix$name$variantSuffix';
 }

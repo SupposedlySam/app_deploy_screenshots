@@ -8,6 +8,16 @@ import 'dart:ui' as ui;
 /// asks for flattened images without transparency. `ui.Image.toByteData(format:
 /// png)` always writes RGBA, so the package encodes its own. Any translucent
 /// pixel is composited over [background] first, so nothing is lost silently.
+/// Writes images as 24-bit RGB PNGs, the format the stores ask for.
+abstract final class PngEncoder {
+  /// Encodes [image] as a 24-bit RGB PNG with no alpha channel. See
+  /// [encodeOpaquePng].
+  static Future<Uint8List> encode(
+    ui.Image image, {
+    ui.Color background = const ui.Color(0xFFFFFFFF),
+  }) => encodeOpaquePng(image, background: background);
+}
+
 Future<Uint8List> encodeOpaquePng(
   ui.Image image, {
   ui.Color background = const ui.Color(0xFFFFFFFF),
