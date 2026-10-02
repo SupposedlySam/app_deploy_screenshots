@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Regenerates the README images in doc/images/2.0/ from the example app's
+# Regenerates the README images in doc/images/1.2/ from the example app's
 # store listing and feature gallery tests. Maintainers only; needs ImageMagick (`magick`) and fvm.
 #
 #   tool/readme_images.sh
 #
 # The images are excluded from the published package (.pubignore) and the
 # README links to them on GitHub, so commit and push after regenerating.
-# Each major version gets its own folder: published READMEs link to main,
+# Each release with new images gets its own folder: published READMEs link to main,
 # so replacing an older version's images would change its pub.dev page.
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-out="$repo/doc/images/2.0"
+out="$repo/doc/images/1.2"
 shots="$repo/example/app_deploy_screenshots"
 
 (cd "$repo/example" && rm -rf app_deploy_screenshots &&

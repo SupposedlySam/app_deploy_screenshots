@@ -1,3 +1,6 @@
+// 1.x API kept working until 2.0.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:app_deploy_screenshots/app_deploy_screenshots.dart';
 import 'package:app_deploy_screenshots/src/frame/frame_geometry.dart';
 import 'package:flutter/painting.dart';
@@ -73,7 +76,7 @@ void main() {
 
     test('captionBottom puts the caption below the screen', () {
       final p = plan(
-        const MarketingFrame(layout: FrameLayout.captionBottom),
+        const MarketingFrame(slideLayout: SlideLayout.captionBottom),
         caption: 300,
       );
       expect(p.captionTop, greaterThan(p.screen!.rect.bottom));
@@ -81,24 +84,20 @@ void main() {
 
     test('bleed rotates by its angle', () {
       final p = plan(
-        const MarketingFrame(layout: FrameLayout.bleed(angle: -8)),
+        const MarketingFrame(slideLayout: SlideLayout.bleed(angle: -8)),
       );
       expect(p.screen!.angle, closeTo(-8 * 3.141592653589793 / 180, 1e-12));
     });
 
     test('1.x parameters still work through the deprecated forwarders', () {
       final tilted = plan(
-        // ignore: deprecated_member_use_from_same_package
         const MarketingFrame(layout: FrameLayout.tilted, tilt: -12),
       );
       expect(
         tilted.screen!.angle,
         closeTo(-12 * 3.141592653589793 / 180, 1e-12),
       );
-      final noBezel = plan(
-        // ignore: deprecated_member_use_from_same_package
-        const MarketingFrame(bezel: null),
-      );
+      final noBezel = plan(const MarketingFrame(bezel: null));
       expect(noBezel.bezelWidth, 0);
     });
   });
@@ -186,9 +185,9 @@ void main() {
   });
 
   group('bleed', () {
-    FramePlan bleed(Size canvas, FrameLayout layout, {double caption = 200}) =>
+    FramePlan bleed(Size canvas, SlideLayout layout, {double caption = 200}) =>
         FrameGeometry.plan(
-          frame: MarketingFrame(layout: layout),
+          frame: MarketingFrame(slideLayout: layout),
           canvasSize: canvas,
           screen: ScreenSize(imageSize: image, viewRect: view),
           captionHeight: caption,
@@ -201,7 +200,7 @@ void main() {
         final canvas = preset.pixelSize;
         for (final visible in [0.6, 0.7, 0.8, 0.9, 1.0]) {
           final d = deviceOf(
-            bleed(canvas, FrameLayout.bleed(visible: visible)),
+            bleed(canvas, SlideLayout.bleed(visible: visible)),
           );
           final shown = (canvas.height - d.top) / d.height;
           expect(shown, closeTo(visible, 1e-9), reason: 'visible $visible');
@@ -214,7 +213,7 @@ void main() {
       final d = deviceOf(
         bleed(
           image,
-          const FrameLayout.bleed(width: 0.7, visible: 0.6),
+          const SlideLayout.bleed(width: 0.7, visible: 0.6),
           caption: 100,
         ),
       );
@@ -225,7 +224,7 @@ void main() {
       const caption = 900.0;
       final p = bleed(
         image,
-        const FrameLayout.bleed(width: 0.95, visible: 0.95),
+        const SlideLayout.bleed(width: 0.95, visible: 0.95),
         caption: caption,
       );
       final d = deviceOf(p);
@@ -235,7 +234,7 @@ void main() {
     });
 
     test('a tilted device keeps its corners on the canvas by default', () {
-      final s = bleed(image, const FrameLayout.bleed(angle: -8)).screen!;
+      final s = bleed(image, const SlideLayout.bleed(angle: -8)).screen!;
       for (final corner in [
         s.viewToCanvas(Offset.zero),
         s.viewToCanvas(Offset(device.size.width, 0)),

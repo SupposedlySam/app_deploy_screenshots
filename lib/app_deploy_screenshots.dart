@@ -1,6 +1,10 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_deploy_screenshots/device.dart';
@@ -24,6 +28,7 @@ import 'package:app_deploy_screenshots/src/status_bar.dart';
 import 'package:app_deploy_screenshots/src/variant.dart';
 
 export 'device.dart';
+export 'src/png_encoder.dart' show encodeOpaquePng;
 export 'extensions.dart';
 export 'src/annotations.dart'
     show
@@ -47,7 +52,7 @@ export 'src/frame/device_style.dart'
         ScreenCutout,
         ScreenCrop;
 export 'src/frame/frame_decoration.dart' show FrameDecoration;
-export 'src/frame/frame_layout.dart' show FrameLayout;
+export 'src/frame/frame_layout.dart' show FrameLayout, FrameBleed, SlideLayout;
 export 'src/frame/caption.dart' show Caption, CaptionEmphasis;
 export 'src/frame/marketing_frame.dart'
     show ScreenshotFrame, MarketingFrame, FrameBackground;
@@ -77,13 +82,13 @@ class AppDeployScreenshots {
   /// [verbose] - Whether to print detailed setup information
   /// [mockPlatformChannels] - Whether to stub the `shared_preferences` and
   /// `receive_sharing_intent` channels, for apps using those plugins that
-  /// fail without a platform. Off by default since 2.0: the package should
-  /// assume nothing about an app's plugins.
+  /// fail without a platform. On by default, as in 1.x; the default becomes
+  /// `false` in 2.0, so pass it explicitly if your tests rely on it.
   /// [loadEmojiFont] - Whether to load [emojiFontFamily] (see [loadEmojiFont])
   static Future<void> initialize({
     bool loadFonts = true,
     bool verbose = false,
-    bool mockPlatformChannels = false,
+    bool mockPlatformChannels = true,
     bool loadEmojiFont = true,
   }) async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -199,7 +204,7 @@ class AppDeployScreenshots {
     String name, {
     List<Device> devices = const [...Device.appStore, ...Device.playStore],
     OutputLayout? output,
-    @Deprecated('Use output: OutputLayout.folders(root). Removed in 3.0.')
+    @Deprecated('Use output: OutputLayout.folders(root). Removed in 2.0.')
     String? root,
     Finder? finder,
     CustomPump? customPump,
@@ -652,4 +657,28 @@ class AppDeployScreenshots {
   /// finish decoding.
   static Future<void> primeAssets(WidgetTester tester) =>
       ScreenCapturer.primeAssets(tester);
+
+  /// The `lib/` folder of [package] in the `package_config.json` at
+  /// [configUri], or null if it is not listed.
+  @Deprecated('Internal helper, no longer needed. Removed in 2.0.')
+  @visibleForTesting
+  static Uri? packageLibFromConfig(
+    Uri configUri,
+    Object? json,
+    String package,
+  ) => FontSetup.packageLibFromConfig(configUri, json, package);
+}
+
+/// An asset bundle that reads through to [rootBundle] without
+/// [CachingAssetBundle]'s 10 KB string limit.
+@Deprecated('Unused by the package. Removed in 2.0.')
+class TestAssetBundle extends CachingAssetBundle {
+  @override
+  Future<String> loadString(String key, {bool cache = true}) async {
+    final data = await load(key);
+    return utf8.decode(data.buffer.asUint8List());
+  }
+
+  @override
+  Future<ByteData> load(String key) async => rootBundle.load(key);
 }

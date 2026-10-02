@@ -39,16 +39,16 @@ void main() {
     await start(tester, 'layouts');
     const caption = Caption(headline: 'All your chats, one inbox');
     for (final (name, layout, device) in [
-      ('caption_top', FrameLayout.captionTop, const DeviceStyle()),
-      ('bleed', const FrameLayout.bleed(), const DeviceStyle.detailed()),
+      ('caption_top', SlideLayout.captionTop, const DeviceStyle()),
+      ('bleed', const SlideLayout.bleed(), const DeviceStyle.detailed()),
       (
         'tilted',
-        const FrameLayout.bleed(angle: -8),
+        const SlideLayout.bleed(angle: -8),
         const DeviceStyle.detailed(),
       ),
       (
         'cropped',
-        FrameLayout.captionBottom,
+        SlideLayout.captionBottom,
         const DeviceStyle.screenOnly(crop: ScreenCrop.belowStatusBar),
       ),
     ]) {
@@ -57,7 +57,7 @@ void main() {
         frame: MarketingFrame(
           background: lavender,
           caption: caption,
-          layout: layout,
+          slideLayout: layout,
           device: device,
         ),
       );
@@ -71,7 +71,7 @@ void main() {
           headline: 'All your chats, one inbox',
           headlineStyle: TextStyle(color: Colors.white),
         ),
-        layout: FrameLayout.bleed(),
+        slideLayout: SlideLayout.bleed(),
         device: DeviceStyle.detailed(),
       ),
     );
@@ -99,7 +99,7 @@ void main() {
         name,
         frame: MarketingFrame(
           background: lavender,
-          layout: const FrameLayout.bleed(),
+          slideLayout: const SlideLayout.bleed(),
           device: const DeviceStyle.detailed(),
           caption: Caption(
             headline: 'All your chats, **one inbox**',
@@ -115,7 +115,7 @@ void main() {
     await start(tester, 'annotations');
     const frame = MarketingFrame(
       background: lavender,
-      layout: FrameLayout.bleed(visible: 0.85),
+      slideLayout: SlideLayout.bleed(visible: 0.85),
       device: DeviceStyle.detailed(),
     );
     for (final (name, headline, annotation) in [

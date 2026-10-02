@@ -12,7 +12,7 @@ import 'png_encoder.dart';
 
 /// One written screenshot.
 @immutable
-final class ScreenshotRecord {
+class ScreenshotRecord {
   const ScreenshotRecord({
     required this.path,
     required this.context,

@@ -4,7 +4,7 @@
 
 Your whole App Store and Google Play listing, from a Flutter widget test: framed screenshots of the real app at every store size, posters and slides built from widgets, light, dark and every locale, written where fastlane uploads them.
 
-![Four store slides made by this package: a welcome poster, the inbox with one chat lifted off the screen, a tilted conversation, and two phones side by side](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/listing.png)
+![Four store slides made by this package: a welcome poster, the inbox with one chat lifted off the screen, a tilted conversation, and two phones side by side](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/listing.png)
 
 Every image in this README was rendered by the [example app](example/)'s tests. No simulator, no design tool.
 
@@ -23,10 +23,10 @@ Every image in this README was rendered by the [example app](example/)'s tests. 
 
 ```yaml
 dev_dependencies:
-  app_deploy_screenshots: ^2.0.0
+  app_deploy_screenshots: ^1.2.0
 ```
 
-Upgrading from 1.x? See the [migration notes](CHANGELOG.md#migrating-from-1x).
+Upgrading from 1.0 or 1.1? Your tests keep working as they are. A few 1.x options are deprecated in favour of new ones and will be removed in 2.0; see [Moving off deprecated options](#moving-off-deprecated-options).
 
 ## Quick start
 
@@ -94,7 +94,7 @@ If the test hangs, your screen has a running animation: see [Screens that never 
 /// The shared design. `shot` says which device, locale and brightness.
 MarketingFrame design(ScreenshotContext shot) => MarketingFrame(
   background: FrameBackground.gradient(brandGradient(shot)),
-  layout: const FrameLayout.bleed(),
+  slideLayout: const SlideLayout.bleed(),
   device: const DeviceStyle.detailed(),
 );
 
@@ -134,7 +134,7 @@ testWidgets('store listing', (tester) async {
       emphasis: const CaptionEmphasis.color(Colors.orange),
     ),
     frame: ScreenshotFrame.builder(
-      (shot) => design(shot).copyWith(layout: const FrameLayout.bleed(angle: -6)),
+      (shot) => design(shot).copyWith(slideLayout: const SlideLayout.bleed(angle: -6)),
     ),
   );
 
@@ -151,7 +151,7 @@ The static methods (`AppDeployScreenshots.forStores`, `widgetForStores`, `poster
 
 ## Store sizes
 
-![The same screen at every store size: iPhone 6.9", iPad 13", Play phone, 7" and 10" tablets](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/store_sizes.png)
+![The same screen at every store size: iPhone 6.9", iPad 13", Play phone, 7" and 10" tablets](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/store_sizes.png)
 
 | Preset | Pixels | Store slot |
 | --- | --- | --- |
@@ -176,7 +176,7 @@ A `MarketingFrame` renders the app at the device's real logical size, so layouts
 MarketingFrame(
   background: FrameBackground.gradient(myGradient),
   caption: Caption(headline: 'All your chats, **one inbox**'),
-  layout: FrameLayout.bleed(),
+  slideLayout: SlideLayout.bleed(),
   device: DeviceStyle.detailed(),
 )
 ```
@@ -185,13 +185,25 @@ Pass it as `frame:`, or `ScreenshotFrame.builder((shot) => ...)` to vary it by l
 
 ### Layouts
 
-![Five layouts: caption on top, a device running off the bottom, the same tilted, a cropped screen with the caption below, and the app's own screen blurred as the background](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/layouts.png)
+![Five layouts: caption on top, a device running off the bottom, the same tilted, a cropped screen with the caption below, and the app's own screen blurred as the background](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/layouts.png)
 
-| `layout:` | |
+| `slideLayout:` | |
 | --- | --- |
-| `FrameLayout.captionTop` (default) | The caption above the whole device |
-| `FrameLayout.bleed()` | A large device running off the bottom edge, the layout most top listings use. `width:` sizes the device, `visible:` sets how much of it shows, `angle:` tilts it. |
-| `FrameLayout.captionBottom` | The device above the caption |
+| `SlideLayout.captionTop` (default) | The caption above the whole device |
+| `SlideLayout.bleed()` | A large device running off the bottom edge, the layout most top listings use. `width:` sizes the device, `visible:` sets how much of it shows, `angle:` tilts it. |
+| `SlideLayout.captionBottom` | The device above the caption |
+
+`slideLayout:` is new in 1.2. Frames written for 1.0 and 1.1 set `layout:` with the `FrameLayout` enum, which can't take options, so 1.2 also accepts the bleed beside it as `bleed:`. Both still work, and both are deprecated:
+
+```dart
+// Current
+MarketingFrame(slideLayout: SlideLayout.bleed(angle: -8))
+
+// 1.x style: still works, deprecated, removed in 2.0
+MarketingFrame(layout: FrameLayout.captionTop, bleed: FrameBleed(angle: -8))
+```
+
+`slideLayout:` wins over `bleed:`, and `bleed:` wins over `layout:`.
 
 ### Devices
 
@@ -219,7 +231,7 @@ Captions pick a colour that contrasts with the background.
 
 ### Captions
 
-![The same caption with four kinds of emphasis: coloured words, a highlighter, a gradient, and heavier italic](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/captions.png)
+![The same caption with four kinds of emphasis: coloured words, a highlighter, a gradient, and heavier italic](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/captions.png)
 
 ```dart
 Caption(
@@ -263,7 +275,7 @@ decorations: [
 
 ## Annotations
 
-![The four annotations: a lifted chat row, a spotlight on another, a callout on search, and a magnified row](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/annotations.png)
+![The four annotations: a lifted chat row, a spotlight on another, a callout on search, and a magnified row](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/annotations.png)
 
 ```dart
 annotations: [Lift(find.byKey(const Key('photos-chat')))],
@@ -280,7 +292,7 @@ Annotations find their widget after each device's setup and pumps, so they follo
 
 ## Slides from widgets
 
-![A welcome poster, two phones overlapping on a phone slide, and the same on an iPad](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/widget_slides.png)
+![A welcome poster, two phones overlapping on a phone slide, and the same on an iPad](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/widget_slides.png)
 
 Not every slide is a screenshot. These render without touching the app under test, so they can go anywhere in the listing.
 
@@ -333,7 +345,7 @@ await listing.widget(
 
 ### Panoramas
 
-![Three slides that join into one picture, with a phone straddling the second join](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/panorama.png)
+![Three slides that join into one picture, with a phone straddling the second join](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/panorama.png)
 
 `listing.panorama` draws one widget across several consecutive slides, which join up in the store's carousel:
 
@@ -356,7 +368,7 @@ await listing.panorama(
 
 ## Variants
 
-![The inbox in light and dark, English and French](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/variants.png)
+![The inbox in light and dark, English and French](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/variants.png)
 
 ```dart
 variants: [ScreenshotVariant.light, ScreenshotVariant.dark],
@@ -411,7 +423,7 @@ fastlane/
 
 ## Review
 
-![A contact sheet: every iPhone slide in one image](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/2.0/contact_sheet.png)
+![A contact sheet: every iPhone slide in one image](https://raw.githubusercontent.com/SupposedlySam/app_deploy_screenshots/main/doc/images/1.2/contact_sheet.png)
 
 `await listing.writeReport()` (or `AppDeployScreenshots.writeReport(tester: tester)`) writes:
 
@@ -482,10 +494,12 @@ const tallAndroid = Device(
 await AppDeployScreenshots.initialize(
   loadFonts: true, // your pubspec's fonts, and Material icons
   loadEmojiFont: true, // AppDeployScreenshots.emojiFontFamily
-  mockPlatformChannels: false, // true stubs shared_preferences and receive_sharing_intent
+  mockPlatformChannels: true, // stub shared_preferences and receive_sharing_intent
   verbose: false, // print each step
 );
 ```
+
+`mockPlatformChannels` is on by default, as in 1.0 and 1.1, and turns off by default in 2.0. If your tests need those stubs, pass `true` now so the change won't affect you; if they don't, pass `false`.
 
 ### Fonts
 
@@ -543,6 +557,23 @@ Its finder matched nothing on that device. On a smaller screen the widget may be
 ### fastlane output throws `ArgumentError`
 
 The message names what fastlane would have done wrong (an unknown locale folder, two files in one slot) and how to fix it. It throws before anything is captured.
+
+## Moving off deprecated options
+
+Everything written for 1.0 and 1.1 still works in 1.2. These options are deprecated and will be removed in 2.0; your IDE flags each one with its replacement.
+
+| 1.x | 1.2 |
+| --- | --- |
+| `layout: FrameLayout.captionTop` | `slideLayout: SlideLayout.captionTop` |
+| `layout: FrameLayout.captionBottom` | `slideLayout: SlideLayout.captionBottom` |
+| `layout: FrameLayout.tilted, tilt: -8` | `slideLayout: SlideLayout.bleed(angle: -8)` (a larger device, running off the edge) |
+| `bleed: FrameBleed(...)` | `slideLayout: SlideLayout.bleed(...)` |
+| `MarketingFrame(bezel:, screenCornerRadius:, shadow:)` | `MarketingFrame(device: DeviceStyle(bezel:, cornerRadius:, shadow:))` |
+| `forStores(root: 'out')` | `forStores(output: OutputLayout.folders('out'))` |
+| `encodeOpaquePng` | Not needed: every screenshot is already written as an opaque PNG |
+| `TestAssetBundle`, `AppDeployScreenshots.packageLibFromConfig` | Not needed by the package; copy them into your tests if you use them |
+
+`initialize(mockPlatformChannels:)` changes its default to `false` in 2.0; see [Initialisation options](#initialisation-options).
 
 ## Example
 

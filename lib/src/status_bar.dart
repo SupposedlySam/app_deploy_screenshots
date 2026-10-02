@@ -20,22 +20,27 @@ import 'text_style_ext.dart';
 /// published, icons contrast with the platform brightness. Set
 /// [iconBrightness] to override.
 @immutable
-final class StatusBarOverlay {
+class StatusBarOverlay {
   const StatusBarOverlay({
-    this.time,
+    String? time,
     this.iconBrightness,
     this.style,
     this.fontFamily = PackageText.family,
     this.batteryLevel = 1.0,
-  }) : assert(batteryLevel >= 0 && batteryLevel <= 1);
+  }) : assert(batteryLevel >= 0 && batteryLevel <= 1),
+       _time = time;
 
-  /// The clock text. Defaults to `9:41` on iOS, Apple's own marketing time,
-  /// and `9:30` on Android, the time Google's own Play listings show.
-  final String? time;
+  final String? _time;
 
-  /// The clock text drawn on [platform].
+  /// The clock text passed in, or `9:41` if none was. With none passed,
+  /// Android status bars draw `9:30` instead, the time Google's own Play
+  /// listings show; [timeFor] gives the text drawn on each platform.
+  String get time => _time ?? '9:41';
+
+  /// The clock text drawn on [platform]: the one passed in, else `9:41` on
+  /// iOS (Apple's marketing time) and `9:30` on Android.
   String timeFor(DevicePlatform platform) =>
-      time ?? (platform == DevicePlatform.ios ? '9:41' : '9:30');
+      _time ?? (platform == DevicePlatform.ios ? '9:41' : '9:30');
 
   /// [Brightness.dark] draws dark icons (for a light background),
   /// [Brightness.light] draws light icons. Null reads it from the app.

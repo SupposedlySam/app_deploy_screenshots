@@ -27,7 +27,7 @@ LinearGradient brandGradient(ScreenshotContext shot) => LinearGradient(
 /// bottom, and the phone drawn with its camera cutout.
 MarketingFrame design(ScreenshotContext shot) => MarketingFrame(
   background: FrameBackground.gradient(brandGradient(shot)),
-  layout: const FrameLayout.bleed(),
+  slideLayout: const SlideLayout.bleed(),
   device: const DeviceStyle.detailed(),
 );
 
@@ -126,8 +126,9 @@ void main() {
         ),
       ),
       frame: ScreenshotFrame.builder(
-        (shot) =>
-            design(shot).copyWith(layout: const FrameLayout.bleed(angle: -6)),
+        (shot) => design(
+          shot,
+        ).copyWith(slideLayout: const SlideLayout.bleed(angle: -6)),
       ),
       annotations: [Lift(find.byKey(ChatApp.photoMessageKey))],
     );

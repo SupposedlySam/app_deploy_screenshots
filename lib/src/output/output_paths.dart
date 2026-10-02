@@ -17,7 +17,7 @@ abstract final class OutputPaths {
   /// `byPlatform`.
   static String platform(Device device, ScreenshotContext context) =>
       '$defaultRoot/${device.platform.name}/'
-      '${device.displaySize?.label ?? 'other'}_${device.name}/'
+      '${device.displaySize.label}_${device.name}/'
       '${context.fileStem}.png';
 
   /// `app_deploy_screenshots/<device>.<stem>.png`. The `byDevices` default.

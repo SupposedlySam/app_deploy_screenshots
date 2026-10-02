@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use_from_same_package
 
 import 'device_style.dart';
+import 'frame_layout.dart';
 import 'marketing_frame.dart';
 
 /// What a frame resolves to once the deprecated 1.x parameters are folded
@@ -16,6 +17,11 @@ extension FrameResolution on MarketingFrame {
         shadow: shadow ? const DeviceShadow() : null,
       );
 
+  /// The layout in effect: `slideLayout`, else the 1.x `bleed`, else the
+  /// 1.x `layout` enum.
+  SlideLayout get effectiveLayout =>
+      slideLayout ?? bleed?.toSlideLayout() ?? layout.slideLayout;
+
   /// The tilt in effect for the layout, in degrees.
-  double get effectiveAngle => layout.spec.angle ?? tilt;
+  double get effectiveAngle => effectiveLayout.spec.angle ?? tilt;
 }

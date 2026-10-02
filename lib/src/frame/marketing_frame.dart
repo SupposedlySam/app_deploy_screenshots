@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -11,7 +13,7 @@ import 'frame_layout.dart';
 
 export 'caption.dart' show Caption;
 export 'device_style.dart' show DeviceBezel;
-export 'frame_layout.dart' show FrameLayout;
+export 'frame_layout.dart' show FrameLayout, FrameBleed, SlideLayout;
 
 /// Chooses the frame for each screenshot, so a frame can vary by device,
 /// locale and brightness.
@@ -233,24 +235,37 @@ Brightness _brightnessOf(Color c) =>
 /// The app is rendered at the device's logical size first, so layouts are
 /// the real ones; only the finished image is scaled.
 @immutable
-final class MarketingFrame implements ScreenshotFrame {
+class MarketingFrame implements ScreenshotFrame {
   const MarketingFrame({
     this.background = const FrameBackground.solid(Color(0xFFF2F2F7)),
     this.caption,
+    this.slideLayout,
+    @Deprecated(
+      'Use slideLayout: SlideLayout.captionTop / .captionBottom / .bleed(). '
+      'Removed in 2.0.',
+    )
     this.layout = FrameLayout.captionTop,
+    @Deprecated('Use slideLayout: SlideLayout.bleed(...). Removed in 2.0.')
+    this.bleed,
     this.device,
     this.canvasSize,
     this.referenceSize = const Size(440, 956),
     this.decorations = const [],
-    @Deprecated('Use device: DeviceStyle(bezel: ...). Removed in 3.0.')
+    @Deprecated('Use device: DeviceStyle(bezel: ...). Removed in 2.0.')
     this.bezel = const DeviceBezel(),
-    @Deprecated('Use device: DeviceStyle(cornerRadius: ...). Removed in 3.0.')
+    @Deprecated('Use device: DeviceStyle(cornerRadius: ...). Removed in 2.0.')
     this.screenCornerRadius,
-    @Deprecated('Use layout: FrameLayout.bleed(angle: ...). Removed in 3.0.')
+    @Deprecated(
+      'Use slideLayout: SlideLayout.bleed(angle: ...). Removed in 2.0.',
+    )
     this.tilt = -8,
-    @Deprecated('Use device: DeviceStyle(shadow: ...). Removed in 3.0.')
+    @Deprecated('Use device: DeviceStyle(shadow: ...). Removed in 2.0.')
     this.shadow = true,
   }) : assert(
+         slideLayout == null || bleed == null,
+         'Pass slideLayout or the deprecated bleed, not both.',
+       ),
+       assert(
          // `identical`, not `==`: this runs in const constructors, where only
          // primitive equality can be evaluated. The default is a canonical
          // constant, so it's identical exactly when the caller didn't set it.
@@ -265,8 +280,21 @@ final class MarketingFrame implements ScreenshotFrame {
   final FrameBackground background;
   final Caption? caption;
 
-  /// Where the caption and device go. See [FrameLayout].
+  /// Where the caption and device go. See [SlideLayout]. When null, the
+  /// deprecated [bleed] or [layout] decide.
+  final SlideLayout? slideLayout;
+
+  /// Where the caption and device go: the 1.x enum. Ignored when
+  /// [slideLayout] or [bleed] is set.
+  @Deprecated(
+    'Use slideLayout: SlideLayout.captionTop / .captionBottom / .bleed(). '
+    'Removed in 2.0.',
+  )
   final FrameLayout layout;
+
+  /// A device running off the bottom edge, alongside the 1.x [layout].
+  @Deprecated('Use slideLayout: SlideLayout.bleed(...). Removed in 2.0.')
+  final FrameBleed? bleed;
 
   /// How the device is drawn. See [DeviceStyle]. Defaults to a rounded bezel
   /// with a shadow.
@@ -291,17 +319,17 @@ final class MarketingFrame implements ScreenshotFrame {
   /// [FrameDecoration].
   final List<FrameDecoration> decorations;
 
-  @Deprecated('Use device: DeviceStyle(bezel: ...). Removed in 3.0.')
+  @Deprecated('Use device: DeviceStyle(bezel: ...). Removed in 2.0.')
   final DeviceBezel? bezel;
 
-  @Deprecated('Use device: DeviceStyle(cornerRadius: ...). Removed in 3.0.')
+  @Deprecated('Use device: DeviceStyle(cornerRadius: ...). Removed in 2.0.')
   final double? screenCornerRadius;
 
   /// Rotation in degrees for [FrameLayout.tilted].
-  @Deprecated('Use layout: FrameLayout.bleed(angle: ...). Removed in 3.0.')
+  @Deprecated('Use slideLayout: SlideLayout.bleed(angle: ...). Removed in 2.0.')
   final double tilt;
 
-  @Deprecated('Use device: DeviceStyle(shadow: ...). Removed in 3.0.')
+  @Deprecated('Use device: DeviceStyle(shadow: ...). Removed in 2.0.')
   final bool shadow;
 
   /// A copy with the given fields replaced, e.g. one slide's caption on a
@@ -312,7 +340,7 @@ final class MarketingFrame implements ScreenshotFrame {
   MarketingFrame copyWith({
     FrameBackground? background,
     Caption? caption,
-    FrameLayout? layout,
+    SlideLayout? slideLayout,
     DeviceStyle? device,
     Size? canvasSize,
     Size? referenceSize,
@@ -320,21 +348,18 @@ final class MarketingFrame implements ScreenshotFrame {
   }) => MarketingFrame(
     background: background ?? this.background,
     caption: caption ?? this.caption,
-    layout: layout ?? this.layout,
+    slideLayout: slideLayout ?? this.slideLayout,
+    layout: layout,
+    bleed: slideLayout == null ? bleed : null,
     device: device ?? this.device,
     canvasSize: canvasSize ?? this.canvasSize,
     referenceSize: referenceSize ?? this.referenceSize,
     decorations: decorations ?? this.decorations,
-    // ignore: deprecated_member_use_from_same_package
     bezel: this.device == null && device == null ? bezel : const DeviceBezel(),
-    // ignore: deprecated_member_use_from_same_package
     screenCornerRadius: this.device == null && device == null
-        // ignore: deprecated_member_use_from_same_package
         ? screenCornerRadius
         : null,
-    // ignore: deprecated_member_use_from_same_package
     tilt: tilt,
-    // ignore: deprecated_member_use_from_same_package
     shadow: this.device == null && device == null ? shadow : true,
   );
 

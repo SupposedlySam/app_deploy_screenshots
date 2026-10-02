@@ -152,7 +152,7 @@ abstract final class FrameGeometry {
     // device width = w * (1 + k).
     final bezelPoints = frame.effectiveDevice.bezel?.width ?? 0;
     final k = 2 * bezelPoints / shownWidth;
-    final spec = frame.layout.spec;
+    final spec = frame.effectiveLayout.spec;
 
     double w;
     double screenTop;

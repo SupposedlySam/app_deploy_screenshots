@@ -119,7 +119,7 @@ final class DeviceStyle {
 /// Plain rounded-rectangle device outline. No manufacturer artwork, so there
 /// is nothing to license.
 @immutable
-final class DeviceBezel {
+class DeviceBezel {
   const DeviceBezel({this.color = const Color(0xFF111111), this.width = 10});
 
   final Color color;

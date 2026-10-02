@@ -1,3 +1,6 @@
+// 1.x API kept working until 2.0.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 // Every public configuration type must work in a const expression: that is
 // how most users write frames. A const evaluation error is a compile error,
 // so this file failing to load is the failure.
@@ -7,11 +10,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 const frames = <MarketingFrame>[
   MarketingFrame(),
-  MarketingFrame(layout: FrameLayout.captionBottom),
+  MarketingFrame(slideLayout: SlideLayout.captionBottom),
   MarketingFrame(layout: FrameLayout.tilted),
-  MarketingFrame(layout: FrameLayout.bleed()),
+  MarketingFrame(slideLayout: SlideLayout.bleed()),
   MarketingFrame(
-    layout: FrameLayout.bleed(width: 0.8, visible: 0.7, angle: -6),
+    slideLayout: SlideLayout.bleed(width: 0.8, visible: 0.7, angle: -6),
   ),
   MarketingFrame(device: DeviceStyle()),
   MarketingFrame(device: DeviceStyle.screenOnly()),
@@ -44,7 +47,6 @@ void main() {
 
   test('setting both device: and a deprecated device parameter is caught', () {
     expect(
-      // ignore: deprecated_member_use_from_same_package
       () => MarketingFrame(device: const DeviceStyle(), shadow: false),
       throwsAssertionError,
     );

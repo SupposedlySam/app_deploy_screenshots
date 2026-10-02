@@ -1,20 +1,21 @@
-## 2.0.0
+## 1.2.0
 
 A whole store listing from one test: slides that aren't screenshots, layouts the top apps use, and output fastlane can upload as it is.
 
-### Migrating from 1.x
+Everything written for 1.0 and 1.1 keeps working: the published 1.1.0+1 example test passes unchanged against this release.
 
-Most 1.x code compiles unchanged; deprecated members still work and are removed in 3.0. Check these:
+### Deprecations
 
-- `AppDeployScreenshots.initialize()` no longer stubs the `shared_preferences` and `receive_sharing_intent` platform channels. Pass `initialize(mockPlatformChannels: true)` to keep the 1.x behaviour.
-- `FrameLayout` is a sealed class, not an enum. `FrameLayout.captionTop`, `.captionBottom` and `.tilted` are unchanged, but `switch`es over it, `FrameLayout.values` and `.name` no longer compile.
-- `Device`, `Caption`, `StatusBarOverlay`, `ScreenshotVariant`, `ScreenshotContext`, `ScreenshotRecord`, `Spotlight`, `Callout` and `MagnifierInset` are `final`: build them, don't extend or implement them.
-- `Device.displaySize` is optional, and the Google Play presets have none. `Caption.textAlign`, `Caption.textDirection` and `StatusBarOverlay.time` are nullable; null means the default (centred, the locale's direction, the platform's marketing time).
-- `Device.androidPhoneTall` and `Device.androidPhoneExtra` are portrait (1080 × 2160 and 1080 × 2400), as their names say; they were landscape.
-- `encodeOpaquePng` and `TestAssetBundle` are removed; every screenshot is already written as an opaque PNG.
-- Deprecated, still working: `MarketingFrame(bezel:, shadow:, screenCornerRadius:, tilt:)` (use `device: DeviceStyle(...)` and `layout: FrameLayout.bleed(angle: ...)`), `forStores(root:)` (use `output: OutputLayout.folders(root)`).
+Each still works and is removed in 2.0; the IDE names its replacement.
 
-Output changes, for anyone comparing against 1.x images: package text (captions, callouts, status bars) and the app's own `Roboto` text now draw at real font weights; the iOS status bar time stays 9:41 but Android's is 9:30; bezels are about a third thinner (1.x drew them at the wrong scale); captions in right-to-left locales lay out right to left.
+- `MarketingFrame(layout: FrameLayout...)`: use `slideLayout: SlideLayout.captionTop`, `.captionBottom` or `.bleed(...)`. `FrameLayout` stays the 1.x enum, and `MarketingFrame(bleed: FrameBleed(...))` adds the new bleed layout beside it for 1.x-style code; both are deprecated.
+- `MarketingFrame(tilt:)`: use `slideLayout: SlideLayout.bleed(angle: ...)`.
+- `MarketingFrame(bezel:, screenCornerRadius:, shadow:)`: use `device: DeviceStyle(...)`.
+- `forStores(root:)`: use `output: OutputLayout.folders(root)`.
+- `encodeOpaquePng`, `TestAssetBundle` and `AppDeployScreenshots.packageLibFromConfig`: no longer needed.
+- `initialize(mockPlatformChannels:)` stays `true` by default, and becomes `false` in 2.0. Pass it explicitly to be unaffected.
+
+Output changes, for anyone comparing against 1.1 images: package text (captions, callouts, status bars) and the app's own `Roboto` text draw at real font weights; Android status bars show 9:30 unless `time:` is set (iOS stays 9:41); bezels are about a third thinner (1.1 drew them at the wrong scale); captions in right-to-left locales lay out right to left unless `textDirection:` is set.
 
 ### Slides that aren't screenshots
 
@@ -27,7 +28,7 @@ Output changes, for anyone comparing against 1.x images: package text (captions,
 
 ### Layouts and devices
 
-- feat: `FrameLayout.bleed` runs the device off the bottom edge, optionally tilted
+- feat: `SlideLayout.bleed` runs the device off the bottom edge, optionally tilted (`MarketingFrame(slideLayout:)`)
 - feat: `DeviceStyle` groups how the device is drawn: bezel, Dynamic Island, notch or punch-hole cutout, side buttons, outline, glow, a real shadow, cropping (`ScreenCrop.belowStatusBar`, `.safeArea`) and a fade-out, with `.screenOnly()` and `.detailed()` presets
 - feat: `FrameBackground.image(blur:, tint:)` and `FrameBackground.screen()`, the app's own screen enlarged and blurred behind the device
 - feat: `Device.playStoreWear`, `playStoreChromebook` and `playStorePhoneTall` presets, and `Device.type`

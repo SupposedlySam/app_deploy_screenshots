@@ -386,7 +386,7 @@ void main() {
     ) async {
       await tester.pumpWidget(const _Blocks());
       const frame = MarketingFrame(
-        layout: FrameLayout.bleed(angle: -8),
+        slideLayout: SlideLayout.bleed(angle: -8),
         device: DeviceStyle.screenOnly(shadow: null),
       );
       final png = await shoot(
@@ -679,7 +679,7 @@ void main() {
         'bg_screen',
         frame: const MarketingFrame(
           background: FrameBackground.screen(tint: Color(0x00000000)),
-          layout: FrameLayout.captionTop,
+          slideLayout: SlideLayout.captionTop,
         ),
       );
       // The app is grey with a blue and a green box; blurred and enlarged,

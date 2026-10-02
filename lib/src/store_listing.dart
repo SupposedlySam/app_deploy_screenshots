@@ -22,7 +22,7 @@ import 'variant.dart';
 /// ```dart
 /// final listing = StoreListing(
 ///   tester,
-///   frame: MarketingFrame(background: brandGradient, layout: FrameLayout.bleed()),
+///   frame: MarketingFrame(background: brandGradient, slideLayout: SlideLayout.bleed()),
 ///   statusBar: const StatusBarOverlay(),
 ///   customPump: (t) => t.pump(const Duration(milliseconds: 100)),
 /// );

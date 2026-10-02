@@ -48,12 +48,12 @@ enum DeviceType { phone, tablet, chromebook, tv, wear }
 /// Check these locations for the latest specs:
 /// Apple: https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications/
 /// Google: https://support.google.com/googleplay/android-developer/answer/9866151?hl=en&sjid=9437801895573353493-NA#zippy=%2Cscreenshots
-final class Device {
+class Device {
   /// This [Device] is a configuration for golden test. Can be provided for [multiScreenGolden]
   const Device({
     required this.size,
     required this.name,
-    this.displaySize,
+    this.displaySize = DisplaySize.sixOne,
     required this.platform,
     this.devicePixelRatio = 1.0,
     this.textScale = 1.0,
@@ -106,6 +106,7 @@ final class Device {
     devicePixelRatio: 2.5,
     safeArea: EdgeInsets.only(top: 24),
     type: DeviceType.phone,
+    displaySize: DisplaySize.sixOne,
   );
 
   /// Google Play 7" tablet size: 1224 × 2176 px (9:16), 612 dp wide.
@@ -116,6 +117,7 @@ final class Device {
     devicePixelRatio: 2.0,
     safeArea: EdgeInsets.only(top: 24),
     type: DeviceType.tablet,
+    displaySize: DisplaySize.sixNine,
   );
 
   /// Google Play 10" tablet size: 1620 × 2880 px (9:16), 810 dp wide.
@@ -126,6 +128,7 @@ final class Device {
     devicePixelRatio: 2.0,
     safeArea: EdgeInsets.only(top: 24),
     type: DeviceType.tablet,
+    displaySize: DisplaySize.tenFive,
   );
 
   /// Google Play phone at 1080 × 2400 (20:9), a modern phone's native
@@ -347,12 +350,12 @@ final class Device {
     type: DeviceType.phone,
   );
 
-  /// Android phone, 18:9 portrait: 1080 × 2160 px.
-  ///
-  /// Before 2.0 this was landscape (2160 × 1080) despite its name.
+  /// Android phone, 18:9 in landscape: 2160 × 1080 px. Landscape despite
+  /// the name, as in 1.0; for a tall portrait phone use
+  /// [playStorePhoneTall].
   static const Device androidPhoneTall = Device(
     name: 'android_phone_18_9',
-    size: Size(360, 720), // 1080/3, 2160/3
+    size: Size(720, 360), // 2160/3, 1080/3
     displaySize: DisplaySize.sixThree,
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
@@ -360,13 +363,11 @@ final class Device {
     type: DeviceType.phone,
   );
 
-  /// Android phone, 20:9 portrait: 1080 × 2400 px. Taller than Play's
-  /// written 2:1 limit; see [playStorePhoneTall].
-  ///
-  /// Before 2.0 this was landscape (2400 × 1080) despite its name.
+  /// Android phone, 20:9 in landscape: 2400 × 1080 px. Landscape despite
+  /// the name, as in 1.0; [playStorePhoneTall] is the portrait 20:9 phone.
   static const Device androidPhoneExtra = Device(
     name: 'android_phone_20_9',
-    size: Size(360, 800), // 1080/3, 2400/3
+    size: Size(800, 360), // 2400/3, 1080/3
     displaySize: DisplaySize.sixFive,
     platform: DevicePlatform.android,
     devicePixelRatio: 3.0,
@@ -443,8 +444,10 @@ final class Device {
   /// points, as the app reads them from `MediaQuery.paddingOf`.
   final EdgeInsets safeArea;
 
-  /// [displaySize] specify display size
-  final DisplaySize? displaySize;
+  /// The iOS screen size class, used by [byDisplaySize] and `byPlatform`'s
+  /// folder names. Android devices have none of their own: their value is
+  /// nominal (6.1" when not given).
+  final DisplaySize displaySize;
 
   /// [platform] specify platform
   final DevicePlatform platform;

@@ -22,7 +22,7 @@ import 'package:flutter/painting.dart';
 /// unmatched markers stay as typed. The `**` survives translation files and
 /// tools, so localised captions can mark their own emphasis.
 @immutable
-final class Caption {
+class Caption {
   const Caption({
     required this.headline,
     this.subheadline,
@@ -31,9 +31,10 @@ final class Caption {
     this.headlineStyle,
     this.subheadlineStyle,
     this.footnoteStyle,
-    this.textAlign,
-    this.textDirection,
-  });
+    TextAlign? textAlign,
+    TextDirection? textDirection,
+  }) : _textAlign = textAlign,
+       _textDirection = textDirection;
 
   final String headline;
   final String? subheadline;
@@ -55,12 +56,24 @@ final class Caption {
   /// Merged over 11pt Roboto, muted.
   final TextStyle? footnoteStyle;
 
-  /// Null centres the text.
-  final TextAlign? textAlign;
+  final TextAlign? _textAlign;
+  final TextDirection? _textDirection;
 
-  /// Text direction. Null follows the screenshot's locale
-  /// (`ScreenshotContext.textDirection`).
-  final TextDirection? textDirection;
+  /// The alignment passed in, or [TextAlign.center] if none was.
+  TextAlign get textAlign => _textAlign ?? TextAlign.center;
+
+  /// The direction passed in, or [TextDirection.ltr] if none was. With none
+  /// passed, the caption is laid out in the screenshot's locale direction
+  /// (right to left for Arabic or Hebrew), not necessarily left to right.
+  TextDirection get textDirection => _textDirection ?? TextDirection.ltr;
+
+  /// [textAlign] as passed, or null. Not part of the public API.
+  @internal
+  TextAlign? get textAlignOrNull => _textAlign;
+
+  /// [textDirection] as passed, or null. Not part of the public API.
+  @internal
+  TextDirection? get textDirectionOrNull => _textDirection;
 
   /// This caption's text in [shared]'s look: each style merged over
   /// [shared]'s, and the emphasis, alignment and direction taken from it
@@ -86,8 +99,8 @@ final class Caption {
       headlineStyle: merge(shared.headlineStyle, headlineStyle),
       subheadlineStyle: merge(shared.subheadlineStyle, subheadlineStyle),
       footnoteStyle: merge(shared.footnoteStyle, footnoteStyle),
-      textAlign: textAlign ?? shared.textAlign,
-      textDirection: textDirection ?? shared.textDirection,
+      textAlign: _textAlign ?? shared._textAlign,
+      textDirection: _textDirection ?? shared._textDirection,
     );
   }
 }
